@@ -35,8 +35,8 @@ DVBT_ifft::DVBT_ifft(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 
 
 	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
-
-	this->buf = new dvbt_complex_t[dvbt_settings->ofdmmode];
+	this->tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode];
+	this->buf = new dvbt_complex_t[this->dvbt_settings->ofdmmode];
 	memset(this->buf, 0, this->dvbt_settings->ofdmmode * sizeof(dvbt_complex_t));
 	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode, (fftwf_complex*)this->buf, 
 			((fftwf_complex*)this->mem->out)+this->dvbt_settings->guardcarriers, FFTW_BACKWARD, FFTW_MEASURE);
@@ -47,6 +47,8 @@ DVBT_ifft::~DVBT_ifft()
 {
 	fftwf_destroy_plan(this->p);
 	delete[] this->buf;
+	delete[] this->tmp;
+
 }
 
 int DVBT_ifft::encode()
@@ -56,6 +58,7 @@ int DVBT_ifft::encode()
 	rret = this->mem->read(this->fd_in);
 	this->fftshift((dvbt_complex_t*)this->mem->in,this->buf);
 	fftwf_execute(this->p);
+	//insert <guardcarriers> to the beginning of the buffer
 	memcpy(this->mem->out,this->mem->out+this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t),this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t));
 	wret = this->mem->write(this->fd_out);
 
@@ -68,18 +71,15 @@ void DVBT_ifft::fftshift( dvbt_complex_t *in, dvbt_complex_t *out )
 {
 	int i;
 	
-	dvbt_complex_t *tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode];
-	memset(tmp,0,this->dvbt_settings->ofdmmode * sizeof(dvbt_complex_t));
+	memset(this->tmp,0,this->dvbt_settings->ofdmmode * sizeof(dvbt_complex_t));
 	
 	/* calculate offset */
 	i = (this->dvbt_settings->ofdmmode - this->dvbt_settings->ofdmcarriers + 1)/2;
 
 	/* shift */
-	memcpy(tmp + i , in , this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t) );
+	memcpy(this->tmp + i , in , this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t) );
 
 	/* swap */
-	memcpy(out, tmp + this->dvbt_settings->ofdmmode/2, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t));
-	memcpy(out + this->dvbt_settings->ofdmmode/2 , tmp, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t));
-
-	delete[] tmp;
+	memcpy(out, this->tmp + this->dvbt_settings->ofdmmode/2, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t));
+	memcpy(out + this->dvbt_settings->ofdmmode/2 , this->tmp, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t));
 }

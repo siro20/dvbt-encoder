@@ -49,6 +49,7 @@ private:
 	DVBT_settings* dvbt_settings;
 	fftwf_plan p;
 	dvbt_complex_t *buf;
+	dvbt_complex_t *tmp;
 };
 
 #endif
