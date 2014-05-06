@@ -24,23 +24,23 @@ DVBT_si::DVBT_si(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 {
 	int i,rs,rs_xor,r;
 	int *hq_ptr;
-    this->fd_in = fd_in;
-    this->fd_out = fd_out;
-    this->dvbt_settings = dvbt_settings;
-    
-    this->in_multiple_of = this->dvbt_settings->ofdmuseablecarriers;
-    this->out_multiple_of = this->dvbt_settings->ofdmuseablecarriers;
+	this->fd_in = fd_in;
+	this->fd_out = fd_out;
+	this->dvbt_settings = dvbt_settings;
+
+	this->in_multiple_of = this->dvbt_settings->ofdmuseablecarriers;
+	this->out_multiple_of = this->dvbt_settings->ofdmuseablecarriers;
 
 	if(!fd_in)
 		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
 	if(!fd_out)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
 		
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
+	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of, true);
 
-    //todo: ofdmuseablecarriers ?
-    hq_ptr = this->Hq = new int[this->dvbt_settings->ofdmmode];
-    memset(this->Hq, 0, this->dvbt_settings->ofdmmode * sizeof(int));
+	//todo: ofdmuseablecarriers ?
+	hq_ptr = this->Hq = new int[this->dvbt_settings->ofdmmode];
+	memset(this->Hq, 0, this->dvbt_settings->ofdmmode * sizeof(int));
     
 	if(this->dvbt_settings->ofdmmode == 2048)
 	{
@@ -124,7 +124,7 @@ DVBT_si::~DVBT_si()
 
 int DVBT_si::encode(int symbol)
 {
-	int i,n;
+	int i;
 	int rret, wret;
 	uint8_t *out;
 	uint8_t *in;
@@ -132,26 +132,22 @@ int DVBT_si::encode(int symbol)
 	rret = this->mem->read(this->fd_in);
 	out = this->mem->out;
 	in = this->mem->in;
-	for(n=0;n<this->mem->in_size;n+=this->dvbt_settings->ofdmuseablecarriers)
+
+	if(symbol & 1)
 	{
-		if(symbol & 1)
+		for(i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
 		{
-			for(i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
-			{
-				out[i] = in[this->Hq[i]];
-			}
+			out[i] = in[this->Hq[i]];
 		}
-		else
+	}
+	else
+	{
+		for(i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
 		{
-			for(i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
-			{
-				out[this->Hq[i]] = in[i];
-			}
+			out[this->Hq[i]] = in[i];
 		}
-		out += this->dvbt_settings->ofdmuseablecarriers;
-		in += this->dvbt_settings->ofdmuseablecarriers;
-	};
-	
+	}
+
 	wret = this->mem->write(this->fd_out);
 
 	if(rret || wret)
