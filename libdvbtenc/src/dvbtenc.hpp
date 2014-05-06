@@ -35,8 +35,6 @@
 
 using namespace std;
 
-typedef void(*funcs)(FILE*,FILE*,DVBT_settings*);
-
 class DVBT_enc
 {
 public:

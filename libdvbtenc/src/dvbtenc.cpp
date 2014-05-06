@@ -142,14 +142,15 @@ DVBT_enc::DVBT_enc(FILE* in, FILE* out, DVBT_settings *dvbtsettings)
 	int pipe_fd[2];
 	int i;
 	pid_t pid;
-	int next_fd;
+	int fd;
 	
 	this->out = out;
-	this->dvbt_settings = dvbt_settings;
+	this->dvbt_settings = dvbtsettings;
+
 	pipe(pipe_fd);
 	dup2(fileno(stdin), pipe_fd[1]);
 	close(fileno(stdin));
-	next_fd = pipe_fd[0];
+	fd = pipe_fd[0];
 	
 	for(i=0;i<sizeof(FunctionPointers)/sizeof(funcs)-1;i++)
 	{
@@ -160,27 +161,27 @@ DVBT_enc::DVBT_enc(FILE* in, FILE* out, DVBT_settings *dvbtsettings)
 		{
 			FILE *c_out,*c_in;
 			close(pipe_fd[0]);//close the r end
-			
+
 			c_out = fdopen(pipe_fd[1], "w"); //always write to pipe_fd[1]
 			//fprintf(stderr,"errno %d\n",errno);
 			if(!c_out)
 				throw std::runtime_error(__FILE__" C failed to open write end for child!\n");
-			c_in = fdopen(next_fd, "r");
+			c_in = fdopen(fd, "r");
 			if(!c_in)
 				throw std::runtime_error(__FILE__" C failed to open read end for child!\n");
 
-			FunctionPointers[i](c_in, c_out,dvbtsettings);
+			FunctionPointers[i](c_in, c_out,this->dvbt_settings);
 			return;
 		}
 		else if(pid > 0) //parent
 		{
 			close(pipe_fd[1]);
-			next_fd = pipe_fd[0];
+			fd = pipe_fd[0];
 		}
 		else
 			break;
 	}
-	this->next_fd = next_fd;
+	this->next_fd = fd;
 }
 
 DVBT_enc::~DVBT_enc()
@@ -190,5 +191,5 @@ DVBT_enc::~DVBT_enc()
 
 void DVBT_enc::encode()
 {
-	FunctionPointers[sizeof(FunctionPointers)/sizeof(funcs)-1](fdopen(this->next_fd, "r"), this->out,this->dvbt_settings);
+	FunctionPointers[sizeof(FunctionPointers)/sizeof(funcs)-1](fdopen(this->next_fd, "r"), fdopen(fileno(stdout), "w"),this->dvbt_settings);
 }
