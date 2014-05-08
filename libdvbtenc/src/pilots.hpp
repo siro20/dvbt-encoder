@@ -46,7 +46,7 @@ public:
 	int LEN_SCATPILOTS_8K;
 private:
 	void generate_prbs(unsigned char *d_wk, int ofdmcarriers);
-
+	unsigned char *pbrs_pilots;
 	DVBT_settings *dvbt_settings;
 	int *data_pointer;
 	dvbt_complex_t *channels;
