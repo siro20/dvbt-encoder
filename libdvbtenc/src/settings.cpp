@@ -117,14 +117,10 @@ DVBT_settings::DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guar
 	switch(outputformat)
 	{
 		case CHAR:
-			this->normalisation = 4.2f * this->gain;
-		break;
 		case UCHAR:
 			this->normalisation = 2.1f * this->gain;
 			break;
 		case SHORT:
-			this->normalisation = 1075.0f * this->gain;
-			break;
 		case USHORT:
 			this->normalisation = 537.0f * this->gain;
 			break;
