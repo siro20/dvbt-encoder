@@ -31,19 +31,18 @@ DVBT_ifft::DVBT_ifft(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
 		
 	this->in_multiple_of = this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t);
-	this->out_multiple_of = (this->dvbt_settings->ofdmmode + this->dvbt_settings->guardcarriers) * sizeof(dvbt_complex_t);
-
+	this->out_multiple_of = (this->dvbt_settings->ofdmmode + this->dvbt_settings->guardcarriers) * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling;
 
 	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
-	this->tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode];
-	this->buf = new dvbt_complex_t[this->dvbt_settings->ofdmmode];
+	this->tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
+	this->buf = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
 	
-	memset(this->tmp, 0, this->dvbt_settings->ofdmmode * sizeof(dvbt_complex_t));
+	memset(this->tmp, 0, this->dvbt_settings->ofdmmode * sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 	
-	this->fftshift_offset = (this->dvbt_settings->ofdmmode - this->dvbt_settings->ofdmcarriers + 1)/2;
+	this->fftshift_offset = (this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling - this->dvbt_settings->ofdmcarriers + 1)/2;
 	
-	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode, (fftwf_complex*)this->buf, 
-			((fftwf_complex*)this->mem->out)+this->dvbt_settings->guardcarriers, FFTW_BACKWARD, FFTW_MEASURE);
+	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling, (fftwf_complex*)this->buf, 
+			((fftwf_complex*)this->mem->out)+(this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling), FFTW_BACKWARD, FFTW_MEASURE);
 }
 
 
@@ -63,7 +62,8 @@ int DVBT_ifft::encode()
 	this->fftshift((dvbt_complex_t*)this->mem->in,this->buf);
 	fftwf_execute(this->p);
 	//insert <guardcarriers> to the beginning of the buffer
-	memcpy(this->mem->out,this->mem->out+this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t),this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t));
+	memcpy(this->mem->out,this->mem->out+this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling,
+        this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 	wret = this->mem->write(this->fd_out);
 
 	if(rret || wret)
@@ -77,6 +77,6 @@ void DVBT_ifft::fftshift( dvbt_complex_t *in, dvbt_complex_t *out )
 	memcpy(this->tmp + this->fftshift_offset , in , this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t) );
 
 	/* swap */
-	memcpy(out, this->tmp + this->dvbt_settings->ofdmmode/2, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t));
-	memcpy(out + this->dvbt_settings->ofdmmode/2 , this->tmp, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t));
+	memcpy(out, this->tmp + this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling/2, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling);
+	memcpy(out + this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling/2 , this->tmp, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling);
 }
