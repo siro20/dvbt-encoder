@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 	gain = 1.0f;
 	
 	opterr = 0;
-	while ((opt = getopt(argc, argv, "to:b:c:g:m:a:i:s:f:z:")) != -1)
+	while ((opt = getopt(argc, argv, "to:b:c:g:m:a:i:s:f:z:v:")) != -1)
 	{
 		switch (opt)
 		{
