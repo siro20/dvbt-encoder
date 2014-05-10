@@ -1,6 +1,6 @@
 /*
 *
-*    compares to files containing floatingpoint values using a given margin
+*    compares two files containing floatingpoint values using a given margin
 *    Copyright (C) 2014  Patrick Rudolph <siro@das-labor.org>
 *
 *    This program is free software; you can redistribute it and/or modify it under the terms 
