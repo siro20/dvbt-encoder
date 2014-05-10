@@ -26,10 +26,13 @@ OBJDIR_RELEASE = obj
 %: %.cpp
 	$(CPP) $(CFLAGS_RELEASE) $(INC_RELEASE) -o $@ $< 
 
-all: libdvbtenc $(basename $(wildcard *.cpp))
+all: libdvbtenc tools $(basename $(wildcard *.cpp))
 
 libdvbtenc:
 	cd ../libdvbtenc/ && $(MAKE) all
+
+tools:
+	$(CC) -o ./float_cmp ../tools/float_cmp.c
 
 clean: clean_release
 
