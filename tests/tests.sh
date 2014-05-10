@@ -67,7 +67,7 @@ fi
 rm ./output_fd_cmp.bin
 
 cat ./ref_2K_4QAM_1_2_32/output_fd.bin | ./ifft -o 2048 -b 8 -c 2 -g 32 -m 2 -a 1 -s 0 > ./output_cmp.bin
-if cmp -b -n $(stat -c %s "./ref_2K_4QAM_1_2_32/output.bin") -b ./ref_2K_4QAM_1_2_32/output.bin ./output_cmp.bin ; then
+if ./float_cmp ./ref_2K_4QAM_1_2_32/output.bin ./output_cmp.bin 0.25 ; then
   echo ifft same
 else
   echo ifft different
@@ -80,4 +80,4 @@ if cmp -b -n $(stat -c %s "./ref_2K_4QAM_1_2_32/output.bin") -b ./ref_2K_4QAM_1_
 else
   echo dvbtenc different
 fi
-rm ./output.bin
+#rm ./output.bin
