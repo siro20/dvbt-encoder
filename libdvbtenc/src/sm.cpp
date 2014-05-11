@@ -46,7 +46,7 @@ DVBT_sm::DVBT_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 			this->lookup[i].y = (i&1 ? -1.0f : 1.0f) / sqrtf( 2.0f ); // y1
 		}
 		else if(this->dvbt_settings->modulation == 4)
-		{ //TODO
+		{
 			if(i&1)
 				this->lookup[i].y = 1.0f / sqrtf( 10.0f );
 			else
@@ -62,9 +62,30 @@ DVBT_sm::DVBT_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 		}
 		else
 		{
-			//TODO
-			this->lookup[i].y = 0.0f;
-			this->lookup[i].x = 0.0f;
+			if(i&0x08)
+				this->lookup[i].x = 2.0f;
+			else
+				this->lookup[i].x = 6.0f;
+			if(i&0x04)
+				this->lookup[i].y = 2.0f;
+			else
+				this->lookup[i].y = 6.0f;
+				
+			if((i^(i>>2))&0x02)
+				this->lookup[i].x -= 1.0f;
+			else
+				this->lookup[i].x += 1.0f;
+			if((i^(i>>2))&0x01)
+				this->lookup[i].y -= 1.0f;
+			else
+				this->lookup[i].y += 1.0f;
+				
+			if(i&0x20)
+				this->lookup[i].x *= -1.0f;
+			if(i&0x10)
+				this->lookup[i].y *= -1.0f;
+			this->lookup[i].x /= sqrtf( 42.0f );
+			this->lookup[i].y /= sqrtf( 42.0f );
 		}
 		
 	}
