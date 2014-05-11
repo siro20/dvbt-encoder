@@ -133,8 +133,18 @@ void _proc_ifft(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
+void _proc_quant(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+{
+	DVBT_quant dvbtquant(fd_in,fd_out,dvbtsettings);
+	while(!dvbtquant.encode())
+	{
+	};
+
+	exit(0);
+}
+
 typedef void(*funcs)(FILE*,FILE*,DVBT_settings*);
-funcs FunctionPointers[] = {_proc_ed,_proc_rs,_proc_oi,_proc_ed,_proc_ii,_proc_si,_proc_sm,_proc_chan,_proc_ifft};
+funcs FunctionPointers[] = {_proc_ed,_proc_rs,_proc_oi,_proc_ce,_proc_ii,_proc_si,_proc_sm,_proc_chan,_proc_ifft,_proc_quant};
 
 /* test function */
 DVBT_enc::DVBT_enc(FILE* in, FILE* out, DVBT_settings *dvbtsettings)
