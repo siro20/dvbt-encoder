@@ -29,11 +29,17 @@ DVBT_ce::DVBT_ce(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
 	if(!fd_out)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-	// encode one ofdm symbol at time
-	this->in_multiple_of = this->dvbt_settings->bytespersuperframe / (this->dvbt_settings->DVBT_SYMBOLS_FRAME*this->dvbt_settings->DVBT_FRAMES_SUPERFRAME);
+	
 	this->out_multiple_of = this->dvbt_settings->ofdmuseablecarriers * this->dvbt_settings->modulation;
+	this->in_multiple_of = ((this->dvbt_settings->coderate -1) * this->dvbt_settings->ofdmuseablecarriers * this->dvbt_settings->modulation);
+	//encode multiple symbols for coderate > 2/3
+	while(this->in_multiple_of % (this->dvbt_settings->coderate * 8))
+	{
+		this->in_multiple_of *= 2;
+		this->out_multiple_of *= 2;
+	}
+	this->in_multiple_of = this->in_multiple_of / (this->dvbt_settings->coderate * 8);
 	this->shiftreg = 0x00;
-
 	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of, true);
 }
 
@@ -115,7 +121,7 @@ int DVBT_ce::conv_encoder_34()
 	cnt_ret = 0;
 	for(i=0;i<this->mem->in_size*16;i++)
 	{
-		if( (i % 6) != 2 && (i % 6) != 5) // remove X2 and Y3 from stream
+		if(((i % 6) != 2) && ((i % 6) != 5)) // remove X2 and Y3 from stream
 		{
 			*outptr = tmp[i];
 			outptr++;
@@ -137,7 +143,7 @@ int DVBT_ce::conv_encoder_56()
 	cnt_ret = 0;
 	for(i=0;i<this->mem->in_size*16;i++)
 	{
-		if( (i % 10) != 2 && (i % 10) != 5 && (i % 10) != 6 && (i % 10) != 9 ) // remove X2 and Y3 and X4 and Y5 from stream
+		if( ((i % 10) != 2) && ((i % 10) != 5) && ((i % 10) != 6) && ((i % 10) != 9) ) // remove X2 and Y3 and X4 and Y5 from stream
 		{
 			*outptr = tmp[i];
 			outptr++;
@@ -159,8 +165,8 @@ int DVBT_ce::conv_encoder_78()
 	cnt_ret = 0;
 	for(i=0;i<this->mem->in_size*16;i++)
 	{
-		if( (i % 14) != 2 && (i % 14) != 4 && (i % 14) != 6 && (i % 14) != 9 && 
-			(i % 14) != 10 && (i % 14) != 13) // remove X2 and X3 and X4 and Y5 and X6 and Y7 from stream
+		if( ((i % 14) != 2) && ((i % 14) != 4) && ((i % 14) != 6) && ((i % 14) != 9) && 
+			((i % 14) != 10) && ((i % 14) != 13)) // remove X2 and X3 and X4 and Y5 and X6 and Y7 from stream
 		{
 			*outptr = tmp[i];
 			outptr++;
