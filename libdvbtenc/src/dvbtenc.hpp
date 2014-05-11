@@ -32,6 +32,7 @@
 #include "oi.hpp"
 #include "chan.hpp"
 #include "settings.hpp"
+#include "quant.hpp"
 
 using namespace std;
 
