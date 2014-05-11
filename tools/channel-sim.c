@@ -21,7 +21,7 @@
 #include <sys/time.h>
 
 int main(int argc, char *argv[]) {
-	float bitrate;
+	long bitrate;
 	int ret;
 	long waittime;
 	unsigned char buf[188];
@@ -31,18 +31,20 @@ int main(int argc, char *argv[]) {
 		printf("to less arguments given\n%s <bitrate>\n",argv[0]);
 		return EXIT_FAILURE;
 	}
-	bitrate = atof(argv[1]);
+	bitrate = atol(argv[1]);
+	
 	//bitrate/8 == byte per second
 	//byte per second / 188 == mpeg ts packets per second
 	//time between packets == 1/(bitrate/(8*188)) == 8*188/bitrate [s]
-	waittime = (long)(8.0f*188.0f*1000000.0f/bitrate);
+	waittime = (long)(8*188*1000000/bitrate);
+	fprintf(stderr, "using bitrate %ld, %ld usecs between packets\n",bitrate, waittime);
 	gettimeofday(&t1, NULL);
 	while(1){
-		ret = fread(buf,sizeof(char),sizeof(buf),stdin);
+		ret = fread(buf,sizeof(char),188,stdin);
 		if(ret <= 0)
 			break;
 			
-		ret = fread(buf,sizeof(char),sizeof(buf),stdout);
+		ret = fwrite(buf,sizeof(char),188,stdout);
 		if(ret <= 0)
 			break;
 		
@@ -55,6 +57,7 @@ int main(int argc, char *argv[]) {
 			}
 			usleep(-diff);
 		}
+		gettimeofday(&t1, NULL);
 	}
 
 	return 0;
