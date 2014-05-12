@@ -32,7 +32,7 @@ class DVBT_ed
 public:
 	DVBT_ed(FILE *fd_in, FILE *fd_out);
 	~DVBT_ed();
-	int encode();
+	bool encode();
 protected:
 	uint8_t * pbrs_seq;
 	uint8_t * internal_buf;

@@ -33,42 +33,50 @@ DVBT_ifft::DVBT_ifft(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 	this->in_multiple_of = this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t);
 	this->out_multiple_of = (this->dvbt_settings->ofdmmode + this->dvbt_settings->guardcarriers) * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling;
 
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
+	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
 	this->tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
 	this->buf = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
 	
 	memset(this->tmp, 0, this->dvbt_settings->ofdmmode * sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 	
 	this->fftshift_offset = (this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling - this->dvbt_settings->ofdmcarriers + 1)/2;
-	
-	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling, (fftwf_complex*)this->buf, 
-			((fftwf_complex*)this->mem->out)+(this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling), FFTW_BACKWARD, FFTW_MEASURE);
 }
 
 
 DVBT_ifft::~DVBT_ifft()
 {
-	fftwf_destroy_plan(this->p);
 	delete[] this->buf;
 	delete[] this->tmp;
-
 }
 
-int DVBT_ifft::encode()
+bool DVBT_ifft::encode()
 {
-	int rret, wret;
+	dvbt_complex_t *in;
+	fftwf_complex *out;
 	
-	rret = this->mem->read(this->fd_in);
-	this->fftshift((dvbt_complex_t*)this->mem->in,this->buf);
+	in = (dvbt_complex_t*)this->mem->get_in();
+	if(!in)
+		return false;
+	out = (fftwf_complex*)this->mem->get_out();
+	if(!out)
+		return false;
+	
+	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling, (fftwf_complex*)this->buf, 
+		out+(this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling), FFTW_BACKWARD, FFTW_MEASURE);
+	
+	this->fftshift(in,this->buf);
 	fftwf_execute(this->p);
+	
 	//insert <guardcarriers> to the beginning of the buffer
-	memcpy(this->mem->out,this->mem->out+this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling,
-        this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
-	wret = this->mem->write(this->fd_out);
+	memcpy(out,out+this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling,
+		this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
+	
+	fftwf_destroy_plan(this->p);
 
-	if(rret || wret)
-		return 1;
-	return 0;
+	this->mem->free_out((uint8_t*)out);
+	this->mem->free_in((uint8_t*)in);
+	
+	return true;
 }
 
 void DVBT_ifft::fftshift( dvbt_complex_t *in, dvbt_complex_t *out )

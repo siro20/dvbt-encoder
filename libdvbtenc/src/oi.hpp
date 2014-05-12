@@ -32,7 +32,7 @@ class DVBT_oi
 public:
 	DVBT_oi(FILE *fd_in, FILE *fd_out);
 	~DVBT_oi();
-	int encode();
+	bool encode();
 protected:
 	DVBT_memory *mem;
 	FILE *fd_in;

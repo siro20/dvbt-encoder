@@ -30,7 +30,7 @@ DVBT_oi::DVBT_oi(FILE *fd_in, FILE *fd_out)
 		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
 	if(!fd_out)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
+	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
 
 	this->fd_in = fd_in;
 	this->fd_out = fd_out;
@@ -43,17 +43,21 @@ DVBT_oi::~DVBT_oi()
 	delete[] this->oi_buf;
 }
 
-int DVBT_oi::encode()
+bool DVBT_oi::encode()
 /* interleave data byteswise, oi_buf has size 17*(1+2+3+4+5+6+7+8+9+10+11) + 12, reset on startup, n has to be multiple of 12 */
 /* data written to data_out is same as data_cnt */
 {
-	int i,j,k,rret,wret;
+	int i,j,k;
 	unsigned char *p_oi_buf;
-	uint8_t *in = this->mem->in;
-	uint8_t *out = this->mem->out;
+	uint8_t *in;
+	uint8_t *out;
 	
-	//rret = child_read();
-	rret = this->mem->read(this->fd_in);
+	in = this->mem->get_in();
+	if(!in)
+		return false;
+	out = this->mem->get_out();
+	if(!out)
+		return false;
 
 	for(i=0;i<this->mem->in_size;i++)
 	{
@@ -78,10 +82,8 @@ int DVBT_oi::encode()
 		p_oi_buf += j * OI_DEPTH + 1;
 	}
 
-	//wret = child_write();
-	wret = this->mem->write(this->fd_out);
+	this->mem->free_out(out);
+	this->mem->free_in(in);
 
-	if(rret || wret)
-		return 1;
-	return 0;
+	return true;
 }

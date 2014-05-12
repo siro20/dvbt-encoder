@@ -36,7 +36,7 @@ class DVBT_chan
 public:
 	DVBT_chan(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
 	~DVBT_chan();
-	int encode(unsigned int frame, unsigned int symbol);
+	bool encode(unsigned int frame, unsigned int symbol);
 private:
 	FILE *fd_in;
 	FILE *fd_out;

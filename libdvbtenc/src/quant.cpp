@@ -43,62 +43,67 @@ DVBT_quant::DVBT_quant(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 			break;
 	}
 
-    this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of, true);
+    this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of, true);
 }
 
 DVBT_quant::~DVBT_quant()
 {
 }
 
-int DVBT_quant::encode()
+bool DVBT_quant::encode()
 {
-	int rret, wret,i;
+	int i;
 	dvbt_complex_t* in;
-	rret = this->mem->read(this->fd_in);
+	uint8_t *out;
 	
-	in = (dvbt_complex_t*)this->mem->in;
+	in = (dvbt_complex_t*)this->mem->get_in();
+	if(!in)
+		return false;
+	out = this->mem->get_out();
+	if(!out)
+		return false;
+		
 	
 	switch(this->dvbt_settings->outputformat)
 	{
 		case 0:
 			for(i=0;i<this->mem->in_size/sizeof(dvbt_complex_t);i++)
 			{
-				((dvbt_complex_char_t*)this->mem->out)[i].x = (char)in[i].x*this->dvbt_settings->normalisation;
-				((dvbt_complex_char_t*)this->mem->out)[i].y = (char)in[i].y*this->dvbt_settings->normalisation;
+				((dvbt_complex_char_t*)out)[i].x = (char)in[i].x*this->dvbt_settings->normalisation;
+				((dvbt_complex_char_t*)out)[i].y = (char)in[i].y*this->dvbt_settings->normalisation;
 			}
 			break;
 		case 1:
 			for(i=0;i<this->mem->in_size/sizeof(dvbt_complex_t);i++)
 			{
-				((dvbt_complex_uchar_t*)this->mem->out)[i].x = ((unsigned char)in[i].x*this->dvbt_settings->normalisation)+0x80;
-				((dvbt_complex_uchar_t*)this->mem->out)[i].y = ((unsigned char)in[i].y*this->dvbt_settings->normalisation)+0x80;
+				((dvbt_complex_uchar_t*)out)[i].x = ((unsigned char)in[i].x*this->dvbt_settings->normalisation)+0x80;
+				((dvbt_complex_uchar_t*)out)[i].y = ((unsigned char)in[i].y*this->dvbt_settings->normalisation)+0x80;
 			}
 			break;
 		case 2:
 			for(i=0;i<this->mem->in_size/sizeof(dvbt_complex_t);i++)
 			{
-				((dvbt_complex_short_t*)this->mem->out)[i].x = (short int)in[i].x*this->dvbt_settings->normalisation;
-				((dvbt_complex_short_t*)this->mem->out)[i].y = (short int)in[i].y*this->dvbt_settings->normalisation;
+				((dvbt_complex_short_t*)out)[i].x = (short int)in[i].x*this->dvbt_settings->normalisation;
+				((dvbt_complex_short_t*)out)[i].y = (short int)in[i].y*this->dvbt_settings->normalisation;
 			}
 			break;
 		case 3:
 			for(i=0;i<this->mem->in_size/sizeof(dvbt_complex_t);i++)
 			{
-				((dvbt_complex_ushort_t*)this->mem->out)[i].x = ((unsigned short int)in[i].x*this->dvbt_settings->normalisation)+0x8000;
-				((dvbt_complex_ushort_t*)this->mem->out)[i].y = ((unsigned short int)in[i].y*this->dvbt_settings->normalisation)+0x8000;
+				((dvbt_complex_ushort_t*)out)[i].x = ((unsigned short int)in[i].x*this->dvbt_settings->normalisation)+0x8000;
+				((dvbt_complex_ushort_t*)out)[i].y = ((unsigned short int)in[i].y*this->dvbt_settings->normalisation)+0x8000;
 			}
 			break;
 		case 4:
 			for(i=0;i<this->mem->in_size/sizeof(dvbt_complex_t);i++)
 			{
-				((dvbt_complex_t*)this->mem->out)[i].x = in[i].x*this->dvbt_settings->normalisation;
-				((dvbt_complex_t*)this->mem->out)[i].y = in[i].y*this->dvbt_settings->normalisation;
+				((dvbt_complex_t*)out)[i].x = in[i].x*this->dvbt_settings->normalisation;
+				((dvbt_complex_t*)out)[i].y = in[i].y*this->dvbt_settings->normalisation;
 			}
 			break;
 	}
-	wret = this->mem->write(this->fd_out);
+	this->mem->free_out(out);
+	this->mem->free_in((uint8_t*)in);
 
-	if(rret || wret)
-		return 1;
-	return 0;
+	return true;
 }

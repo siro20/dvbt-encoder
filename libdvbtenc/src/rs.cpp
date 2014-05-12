@@ -114,7 +114,7 @@ DVBT_rs::DVBT_rs(FILE *fd_in, FILE *fd_out)
 		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
 	if(!fd_out)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
+	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
 
 	this->fd_in = fd_in;
 	this->fd_out = fd_out;
@@ -160,17 +160,20 @@ void DVBT_rs::galois_mult( unsigned int *wreg, unsigned char shadow )
 }
 
 // software implementation of rs encoder
-int DVBT_rs::encode( )
+bool DVBT_rs::encode( )
 {
-	int i,n,rret,wret;
+	int i,n;
 	unsigned int wreg[4];
 	unsigned char shadow;
-	uint8_t *datain = this->mem->in;
-	uint8_t *dataout = this->mem->out;
+	uint8_t *datain;
+	uint8_t *dataout;
+	datain = this->mem->get_in();
+	if(!datain)
+		return false;
+	dataout = this->mem->get_out();
+	if(!dataout)
+		return false;
 	n = this->mem->in_size;
-	
-	rret = this->mem->read(this->fd_in);
-
     do{
 		// clear register on each loop
 		memset( wreg, 0 , sizeof(int) * 4 );
@@ -226,11 +229,8 @@ int DVBT_rs::encode( )
         n-=188;
     }while(n > 0);
     
-	wret = this->mem->write(this->fd_out);
-
-	//wret = child_write();
-
-	if(rret || wret)
-		return 1;
-	return 0;
+	this->mem->free_out(dataout);
+	this->mem->free_in(datain);
+	
+	return true;
 }

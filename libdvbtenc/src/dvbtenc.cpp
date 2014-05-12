@@ -33,6 +33,7 @@ void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 
 	while(!dvbted.encode())
 	{};
+    fprintf(stderr,"leaving _proc_ed\n");
 
 	exit(0);
 }
@@ -119,7 +120,7 @@ void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 			frame %= 4;
 		}
 	};
-
+    fprintf(stderr,"leaving _proc_chan\n");
 	exit(0);
 }
 
@@ -129,7 +130,7 @@ void _proc_ifft(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	while(!dvbtifft.encode())
 	{
 	};
-
+    fprintf(stderr,"leaving _proc_ifft\n");
 	exit(0);
 }
 
@@ -139,7 +140,7 @@ void _proc_quant(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	while(!dvbtquant.encode())
 	{
 	};
-
+    fprintf(stderr,"leaving _proc_quant\n");
 	exit(0);
 }
 

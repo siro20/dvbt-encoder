@@ -33,13 +33,13 @@ class DVBT_ce
 public:
 	DVBT_ce(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
 	~DVBT_ce();
-	int encode();
+	bool encode();
 private:
-	int conv_encoder_12( uint8_t *in, uint8_t *out);
-	int conv_encoder_23();
-	int conv_encoder_34();
-	int conv_encoder_56();
-	int conv_encoder_78();
+	int conv_encoder_12(uint8_t *in, uint8_t *out);
+	int conv_encoder_23(uint8_t *in, uint8_t *out);
+	int conv_encoder_34(uint8_t *in, uint8_t *out);
+	int conv_encoder_56(uint8_t *in, uint8_t *out);
+	int conv_encoder_78(uint8_t *in, uint8_t *out);
 	FILE *fd_in;
 	FILE *fd_out;
 	int in_multiple_of;

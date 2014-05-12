@@ -62,7 +62,7 @@ DVBT_ed::DVBT_ed(FILE *fd_in, FILE *fd_out)
 	}
 
 
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
+	this->mem = new DVBT_memory(fd_in, fd_out, this->in_multiple_of,this->out_multiple_of,false);
 
 	this->fd_in = fd_in;
 	this->fd_out = fd_out;
@@ -75,23 +75,27 @@ DVBT_ed::~DVBT_ed()
 }
 
 //encodes length packets, assuming that the MPEG TS sync byte is at offset 0
-int DVBT_ed::encode()
+bool DVBT_ed::encode()
 {
-	int i, rret, wret;
-	uint8_t *in = this->mem->in;
-	uint8_t *out = this->mem->out;
+	int i;
+	uint8_t *in;
+	uint8_t *out;
 	
-	rret = this->mem->read(this->fd_in);
-
+	in = this->mem->get_in();
+	if(!in)
+		return false;
+	out = this->mem->get_out();
+	if(!out)
+		return false;
+	
 	for(i=0;i<this->mem->in_size;i++)
 	{
 		//TODO add counter to prevent modulo
 		out[i] = in[i] ^ this->pbrs_seq[i%(8*188)];
 	}
 	
-	wret = this->mem->write(this->fd_out);
-
-	if(wret || rret)
-		return 1;
-	return 0;
+	this->mem->free_out(out);
+	this->mem->free_in(in);
+	
+	return true;
 }

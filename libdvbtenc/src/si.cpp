@@ -36,7 +36,7 @@ DVBT_si::DVBT_si(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 	if(!fd_out)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
 		
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of, true);
+	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of, true);
 
 	//todo: ofdmuseablecarriers ?
 	hq_ptr = this->Hq = new int[this->dvbt_settings->ofdmmode];
@@ -122,16 +122,19 @@ DVBT_si::~DVBT_si()
 	delete[] this->Hq;
 }
 
-int DVBT_si::encode(int symbol)
+bool DVBT_si::encode(int symbol)
 {
 	int i;
 	int rret, wret;
 	uint8_t *out;
 	uint8_t *in;
 	
-	rret = this->mem->read(this->fd_in);
-	out = this->mem->out;
-	in = this->mem->in;
+	in = this->mem->get_in();
+	if(!in)
+		return false;
+	out = this->mem->get_out();
+	if(!out)
+		return false;
 
 	if(symbol & 1)
 	{
@@ -147,10 +150,9 @@ int DVBT_si::encode(int symbol)
 			out[this->Hq[i]] = in[i];
 		}
 	}
+	
+	this->mem->free_out((uint8_t*)out);
+	this->mem->free_in(in);
 
-	wret = this->mem->write(this->fd_out);
-
-	if(rret || wret)
-		return 1;
-	return 0;
+	return true;
 }

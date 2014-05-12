@@ -33,7 +33,7 @@ class DVBT_quant
 public:
 	DVBT_quant(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
 	~DVBT_quant();
-	int encode();
+	bool encode();
 private:
 	FILE *fd_in;
 	FILE *fd_out;

@@ -55,7 +55,7 @@ class DVBT_rs
 public:
     DVBT_rs(FILE *fd_in, FILE *fd_out);
     ~DVBT_rs();
-    int encode();
+    bool encode();
 private:
     void galois_mult( unsigned int *wreg, unsigned char shadow );
     void gen_poly();

@@ -38,7 +38,7 @@ class DVBT_ifft
 public:
 	DVBT_ifft(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
 	~DVBT_ifft();
-	int encode();
+	bool encode();
 private:
 	FILE *fd_in;
 	FILE *fd_out;
