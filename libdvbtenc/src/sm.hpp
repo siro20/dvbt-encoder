@@ -34,7 +34,7 @@ class DVBT_sm
 public:
 	DVBT_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
 	~DVBT_sm();
-	int encode();
+	bool encode();
 private:
 	FILE *fd_in;
 	FILE *fd_out;

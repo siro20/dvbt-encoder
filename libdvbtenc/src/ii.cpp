@@ -22,19 +22,19 @@ using namespace std;
 
 DVBT_ii::DVBT_ii(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 {
-    this->fd_in = fd_in;
-    this->fd_out = fd_out;
-    this->dvbt_settings = dvbt_settings;
-    
-    this->in_multiple_of = this->dvbt_settings->modulation * this->dvbt_settings->DVBT_II_DEPTH;
-    this->out_multiple_of = this->dvbt_settings->DVBT_II_DEPTH;
+	this->fd_in = fd_in;
+	this->fd_out = fd_out;
+	this->dvbt_settings = dvbt_settings;
+
+	this->in_multiple_of = this->dvbt_settings->modulation * this->dvbt_settings->DVBT_II_DEPTH;
+	this->out_multiple_of = this->dvbt_settings->DVBT_II_DEPTH;
 
 	if(!fd_in)
 		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
 	if(!fd_out)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
 		
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
+	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
 
 }
 
@@ -45,20 +45,22 @@ DVBT_ii::~DVBT_ii()
 //simple modulo 126 for numbers smaller than 2*126
 #define MOD126(x,y) if((x) >= 126) y=(x)-126; else y=x;
 
-int DVBT_ii::encode()
+bool DVBT_ii::encode()
 {
 	int i,n;
-	int rret, wret;
 	uint8_t *out;
 	uint8_t *in;
 	static const uint8_t shiftreg_indx[6] = {0,63,105,42,21,84};
 	
-	rret = this->mem->read(this->fd_in);
-	out = this->mem->out;
-
+	in = this->mem->get_in();
+	if(!in)
+		return false;
+	out = this->mem->get_out();
+	if(!out)
+		return false;
+		
 	for(n=0;n<this->mem->in_size;n+=this->dvbt_settings->DVBT_II_DEPTH*this->dvbt_settings->modulation)
 	{
-		in = this->mem->in +n;
 		memset(out,0,this->dvbt_settings->DVBT_II_DEPTH);
 		if(this->dvbt_settings->modulation==2)
 		{
@@ -119,11 +121,11 @@ int DVBT_ii::encode()
 			}
 		}
 		out += this->dvbt_settings->DVBT_II_DEPTH;
+		in += this->dvbt_settings->DVBT_II_DEPTH*this->dvbt_settings->modulation;
 	};
 	
-	wret = this->mem->write(this->fd_out);
+	this->mem->free_out(out);
+	this->mem->free_in(in);
 
-	if(rret || wret)
-		return 1;
-	return 0;
+	return true;
 }

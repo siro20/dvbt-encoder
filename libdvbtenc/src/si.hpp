@@ -33,7 +33,7 @@ class DVBT_si
 public:
 	DVBT_si(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
 	~DVBT_si();
-	int encode(int symbol);
+	bool encode(int symbol);
 private:
 	FILE *fd_in;
 	FILE *fd_out;

@@ -40,7 +40,7 @@ DVBT_ce::DVBT_ce(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 	}
 	this->in_multiple_of = this->in_multiple_of / (this->dvbt_settings->coderate * 8);
 	this->shiftreg = 0x00;
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of, true);
+	this->mem = new DVBT_memory(fd_in, fd_out, this->in_multiple_of,this->out_multiple_of, true);
 }
 
 DVBT_ce::~DVBT_ce()
@@ -88,21 +88,20 @@ int DVBT_ce::conv_encoder_12(uint8_t *in, uint8_t *out)
 	return this->mem->in_size*16;
 }
 
-int DVBT_ce::conv_encoder_23()
+int DVBT_ce::conv_encoder_23(uint8_t *in, uint8_t *out)
 {
 	int i;
 	int cnt_ret;
-	uint8_t *outptr = this->mem->out;
 	uint8_t *tmp = new uint8_t[this->mem->in_size*16];
 
-	conv_encoder_12( this->mem->in, tmp);
+	conv_encoder_12(in, tmp);
 	cnt_ret=0;
 	for(i=0;i<this->mem->in_size*16;i++)
 	{
 		if( (i % 4) != 2 ) // remove X2 from stream
 		{
-			*outptr = tmp[i];
-			outptr++;
+			*out = tmp[i];
+			out++;
 			cnt_ret++;
 		}
 	}
@@ -110,21 +109,20 @@ int DVBT_ce::conv_encoder_23()
 	return cnt_ret;
 }
 
-int DVBT_ce::conv_encoder_34()
+int DVBT_ce::conv_encoder_34(uint8_t *in, uint8_t *out)
 {
 	int i;
 	int cnt_ret;
-	uint8_t *outptr = this->mem->out;
 	uint8_t *tmp = new uint8_t[this->mem->in_size*16];
 
-	conv_encoder_12( this->mem->in, tmp);
+	conv_encoder_12(in, tmp);
 	cnt_ret = 0;
 	for(i=0;i<this->mem->in_size*16;i++)
 	{
 		if(((i % 6) != 2) && ((i % 6) != 5)) // remove X2 and Y3 from stream
 		{
-			*outptr = tmp[i];
-			outptr++;
+			*out = tmp[i];
+			out++;
 			cnt_ret++;
 		}
 	}
@@ -132,21 +130,20 @@ int DVBT_ce::conv_encoder_34()
 	return cnt_ret;
 }
 
-int DVBT_ce::conv_encoder_56()
+int DVBT_ce::conv_encoder_56(uint8_t *in, uint8_t *out)
 {
 	int i;
 	int cnt_ret;
-	uint8_t *outptr = this->mem->out;
 	uint8_t *tmp = new uint8_t[this->mem->in_size*16];
 
-	conv_encoder_12( this->mem->in, tmp);
+	conv_encoder_12(in, tmp);
 	cnt_ret = 0;
 	for(i=0;i<this->mem->in_size*16;i++)
 	{
 		if( ((i % 10) != 2) && ((i % 10) != 5) && ((i % 10) != 6) && ((i % 10) != 9) ) // remove X2 and Y3 and X4 and Y5 from stream
 		{
-			*outptr = tmp[i];
-			outptr++;
+			*out = tmp[i];
+			out++;
 			cnt_ret++;
 		}
 	}
@@ -154,22 +151,21 @@ int DVBT_ce::conv_encoder_56()
 	return cnt_ret;
 }
 
-int DVBT_ce::conv_encoder_78()
+int DVBT_ce::conv_encoder_78(uint8_t *in, uint8_t *out)
 {
 	int i;
 	int cnt_ret;
-	uint8_t *outptr = this->mem->out;
 	uint8_t *tmp = new uint8_t[this->mem->in_size*16];
 
-	conv_encoder_12( this->mem->in, tmp );
+	conv_encoder_12(in, tmp);
 	cnt_ret = 0;
 	for(i=0;i<this->mem->in_size*16;i++)
 	{
 		if( ((i % 14) != 2) && ((i % 14) != 4) && ((i % 14) != 6) && ((i % 14) != 9) && 
 			((i % 14) != 10) && ((i % 14) != 13)) // remove X2 and X3 and X4 and Y5 and X6 and Y7 from stream
 		{
-			*outptr = tmp[i];
-			outptr++;
+			*out = tmp[i];
+			out++;
 			cnt_ret++;
 		}
 	}
@@ -177,36 +173,41 @@ int DVBT_ce::conv_encoder_78()
 	return cnt_ret;
 }
 
-int DVBT_ce::encode()
+bool DVBT_ce::encode()
 {
-	int rret, wret;
-
-	rret = this->mem->read(this->fd_in);
+	uint8_t *in;
+	uint8_t *out;
+	
+	in = this->mem->get_in();
+	if(!in)
+		return false;
+	out = this->mem->get_out();
+	if(!out)
+		return false;
 	
 	switch(this->dvbt_settings->coderate)
 	{
 		case 2:
-			conv_encoder_12 (this->mem->in, this->mem->out);
+			conv_encoder_12 (in, out);
 			break;
 		case 3:
-			conv_encoder_23 ();
+			conv_encoder_23 (in, out);
 			break;
 		case 4:
-			conv_encoder_34 ();
+			conv_encoder_34 (in, out);
 			break;
 		case 6:
-			conv_encoder_56 ();
+			conv_encoder_56 (in, out);
 			break;
 		case 8:
-			conv_encoder_78 ();
+			conv_encoder_78 (in, out);
 			break;
 		default:
-			conv_encoder_12 (this->mem->in, this->mem->out);
+			conv_encoder_12 (in, out);
 			break;
 	}
-	wret = this->mem->write(this->fd_out);
-
-	if(rret || wret)
-		return 1;
-	return 0;
+	this->mem->free_out(out);
+	this->mem->free_in(in);
+	
+	return true;
 }

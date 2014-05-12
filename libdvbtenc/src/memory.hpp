@@ -24,28 +24,51 @@
 #include <cstring>
 #include <cstdio>
 #include <stdexcept>
+#include <thread>
+#include <queue>
+#include <condition_variable>
+#include <chrono>
 
 using namespace std;
 
 class DVBT_memory
 {
 public:
-	DVBT_memory( int in_multiple_of, int out_multiple_of, bool fixed );
-	DVBT_memory( int in_multiple_of, int out_multiple_of );
 	~DVBT_memory();
-	int read(FILE* fd);
-	int write(FILE* fd);
-	uint8_t *in;
-	uint8_t *out;
+	DVBT_memory( FILE *fd_i, FILE *fd_o, int in_multiple_of, int out_multiple_of, bool fixed );
 	int in_size;
 	int out_size;
 	int in_multiple_of;
 	int out_multiple_of;
-private:
+	void free_out(uint8_t *ptr);
+	uint8_t* get_out();
+	void free_in(uint8_t *ptr);
+	uint8_t* get_in();
 
-protected:
+private:
+	bool write(uint8_t *ptr);
+	bool read(uint8_t *ptr);
+	void read_thread();
+	void write_thread();
+	thread rt;
+	thread wt;
+	FILE *fd_in;
+	FILE *fd_out;
+	queue<uint8_t *> in_data;
+	queue<uint8_t *> in_free;
+	queue<uint8_t *> out_data;
+	queue<uint8_t *> out_free;
+	mutex in_mutex;
+	mutex out_mutex;
+	mutex in_signal_mutex;
+	mutex out_signal_mutex;
+	condition_variable in_cond_var;
+	condition_variable out_cond_var;
+	bool readerr;
+	bool writeerr;
 };
 
 #define DVBTENC_APROX_BUF_SIZE 1024
+#define DVBTENC_BUFFERS 5
 
 #endif

@@ -36,7 +36,7 @@ DVBT_chan::DVBT_chan(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
     this->out_multiple_of = this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t);
 
 
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of, true);
+	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of, true);
     
     for(frame=0;frame<this->dvbt_settings->DVBT_FRAMES_SUPERFRAME;frame++)
     {
@@ -52,9 +52,8 @@ DVBT_chan::~DVBT_chan()
 {
 }
 
-int DVBT_chan::encode(unsigned int frame, unsigned int symbol)
+bool DVBT_chan::encode(unsigned int frame, unsigned int symbol)
 {
-	int rret, wret;
 	dvbt_complex_t *out;
 	dvbt_complex_t *in;
 	
@@ -63,15 +62,17 @@ int DVBT_chan::encode(unsigned int frame, unsigned int symbol)
 	if(frame >= this->dvbt_settings->DVBT_FRAMES_SUPERFRAME)
 		return 1;
 
-	rret = this->mem->read(this->fd_in);
-	out = (dvbt_complex_t*)this->mem->out;
-	in = (dvbt_complex_t*)this->mem->in;
-	
+	in = (dvbt_complex_t*)this->mem->get_in();
+	if(!in)
+		return false;
+	out = (dvbt_complex_t*)this->mem->get_out();
+	if(!out)
+		return false;
+
 	this->lookup[frame][symbol]->encode(in,out);
 
-	wret = this->mem->write(this->fd_out);
+	this->mem->free_out((uint8_t*)out);
+	this->mem->free_in((uint8_t*)in);
 
-	if(rret || wret)
-		return 1;
-	return 0;
+	return true;
 }

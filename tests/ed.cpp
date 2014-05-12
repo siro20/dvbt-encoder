@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 	}
 	DVBT_ed dvbted(stdin,stdout);
 
-	while(!dvbted.encode())
+	while(dvbted.encode())
 	{};
 
 	return 0;

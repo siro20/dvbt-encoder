@@ -34,7 +34,7 @@ DVBT_sm::DVBT_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
 	if(!fd_out)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-	this->mem = new DVBT_memory(this->in_multiple_of,this->out_multiple_of);
+	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
 
     this->lookup = new dvbt_complex_t[(1<<this->dvbt_settings->modulation)];
     for(i=0;i<(1<<this->dvbt_settings->modulation);i++)
@@ -97,24 +97,26 @@ DVBT_sm::~DVBT_sm()
 	delete[] this->lookup;
 }
 
-int DVBT_sm::encode()
+bool DVBT_sm::encode()
 {
 	int i;
-	int rret, wret;
-	dvbt_complex_t *out;
 	uint8_t *in;
+	dvbt_complex_t *out;
 	
-	rret = this->mem->read(this->fd_in);
-	out = (dvbt_complex_t*)this->mem->out;
-	in = this->mem->in;
+	in = this->mem->get_in();
+	if(!in)
+		return false;
+	out = (dvbt_complex_t*)this->mem->get_out();
+	if(!out)
+		return false;
+	
 	for(i=0;i<this->mem->in_size;i++)
 	{
 		out[i] = this->lookup[in[i]];
-	};
+	}
 	
-	wret = this->mem->write(this->fd_out);
+	this->mem->free_out((uint8_t*)out);
+	this->mem->free_in(in);
 
-	if(rret || wret)
-		return 1;
-	return 0;
+	return true;
 }
