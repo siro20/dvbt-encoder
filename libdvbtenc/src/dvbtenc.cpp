@@ -31,9 +31,8 @@ void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ed dvbted(fd_in,fd_out);
 
-	while(!dvbted.encode())
+	while(dvbted.encode())
 	{};
-    fprintf(stderr,"leaving _proc_ed\n");
 
 	exit(0);
 }
@@ -42,7 +41,7 @@ void _proc_rs(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_rs dvbtrs(fd_in,fd_out);
 
-	while(!dvbtrs.encode())
+	while(dvbtrs.encode())
 	{};
 
 	exit(0);
@@ -52,7 +51,7 @@ void _proc_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_oi dvbtoi(fd_in,fd_out);
 
-	while(!dvbtoi.encode())
+	while(dvbtoi.encode())
 	{};
 
 	exit(0);
@@ -62,7 +61,7 @@ void _proc_ce(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ce dvbtoi(fd_in,fd_out,dvbtsettings);
 
-	while(!dvbtoi.encode())
+	while(dvbtoi.encode())
 	{};
 
 	exit(0);
@@ -72,7 +71,7 @@ void _proc_ii(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ii dvbtii(fd_in,fd_out,dvbtsettings);
 
-	while(!dvbtii.encode())
+	while(dvbtii.encode())
 	{};
 
 	exit(0);
@@ -83,7 +82,7 @@ void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	int symbol;
 	DVBT_si dvbtsi(fd_in,fd_out,dvbtsettings);
 	symbol = 0;
-	while(!dvbtsi.encode(symbol))
+	while(dvbtsi.encode(symbol))
 	{
 		symbol ++;
 		if(symbol == 68)
@@ -96,7 +95,7 @@ void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_sm dvbtsm(fd_in,fd_out,dvbtsettings);
-	while(!dvbtsm.encode())
+	while(dvbtsm.encode())
 	{
 	};
 
@@ -110,7 +109,7 @@ void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	symbol = 0;
 	frame = 0;
 	DVBT_chan dvbtchan(fd_in,fd_out,dvbtsettings);
-	while(!dvbtchan.encode(frame, symbol))
+	while(dvbtchan.encode(frame, symbol))
 	{
 		symbol++;
 		if(symbol == 68)
@@ -120,27 +119,24 @@ void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 			frame %= 4;
 		}
 	};
-    fprintf(stderr,"leaving _proc_chan\n");
 	exit(0);
 }
 
 void _proc_ifft(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ifft dvbtifft(fd_in,fd_out,dvbtsettings);
-	while(!dvbtifft.encode())
+	while(dvbtifft.encode())
 	{
 	};
-    fprintf(stderr,"leaving _proc_ifft\n");
 	exit(0);
 }
 
 void _proc_quant(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_quant dvbtquant(fd_in,fd_out,dvbtsettings);
-	while(!dvbtquant.encode())
+	while(dvbtquant.encode())
 	{
 	};
-    fprintf(stderr,"leaving _proc_quant\n");
 	exit(0);
 }
 
