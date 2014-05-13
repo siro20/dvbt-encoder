@@ -62,7 +62,7 @@ bool DVBT_ifft::encode()
 		return false;
 	
 	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling, (fftwf_complex*)this->buf, 
-		out+(this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling), FFTW_BACKWARD, FFTW_MEASURE);
+		out+(this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling), FFTW_BACKWARD, FFTW_ESTIMATE);
 	
 	this->fftshift(in,this->buf);
 	fftwf_execute(this->p);
