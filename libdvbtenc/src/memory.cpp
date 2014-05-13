@@ -18,70 +18,73 @@
 
 #include <iostream>
 #include "memory.hpp"
+#include <unistd.h>
 
 using namespace std;
 
+static bool debug = false;
 //might block
 uint8_t* DVBT_memory::get_in()
 {
-	std::unique_lock<std::mutex> lock(this->in_signal_mutex);
 	uint8_t *ptr;
-	if((this->in_data.size() == 0) && this->readerr)
-		return NULL;
-	fprintf(stderr,"get_in() in_data.size %d\n",this->in_data.size());
-	while(this->in_data.size() == 0)
 	{
-		this->in_cond_var.wait(lock);
-		if(this->readerr)
-			return NULL;
+		std::unique_lock<std::mutex> lock(this->in_signal_mutex);
+		while(this->in_data.size() == 0)
+		{
+			this->in_cond_var.wait(lock);
+		}
 	}
-	fprintf(stderr,"get_in>>\n");
 	this->in_mutex.lock();
 	ptr = this->in_data.front();
 	this->in_data.pop();
 	this->in_mutex.unlock();
-    usleep(100);
+	if(ptr==NULL)
+	{
+		//notify write thread
+		this->out_mutex.lock();
+		this->out_data.push(NULL);
+		this->out_mutex.unlock();
+		this->rt.join();
+		this->wt.join();
+	}
+	if(debug) std::cerr << "get_in new in_data.size " << this->in_data.size() << endl;
 	return ptr;
 }
 
 void DVBT_memory::free_in(uint8_t *ptr)
 {
-	fprintf(stderr,"free_in() in_free.size %d\n",this->in_free.size());
 	this->in_mutex.lock();
 	this->in_free.push(ptr);
 	this->in_mutex.unlock();
+	if(debug) std::cerr << "free_in new in_free.size " << this->in_free.size() << endl;
 }
 
 //might block
 uint8_t* DVBT_memory::get_out()
 {
-	fprintf(stderr,"get_out() out_free.size %d\n",this->out_free.size());
-	std::unique_lock<std::mutex> lock(this->out_signal_mutex);
 	uint8_t *ptr;
-	if(this->writeerr)
-		return NULL;
-	while(this->out_free.size() == 0)
 	{
-		this->out_cond_var.wait(lock);
-		if(this->writeerr)
-			return NULL;
+		std::unique_lock<std::mutex> lock(this->out_signal_mutex);
+		while(this->out_free.size() == 0)
+		{
+			this->out_cond_var.wait(lock);
+		}
 	}
-	
-	fprintf(stderr,"get_out>>\n");
 	this->out_mutex.lock();
 	ptr = this->out_free.front();
 	this->out_free.pop();
 	this->out_mutex.unlock();
-	usleep(100);
+	if(debug) std::cerr << "get_out new out_free.size " << this->out_free.size() << endl;
+
 	return ptr;
 }
 
 void DVBT_memory::free_out(uint8_t *ptr)
 {
-	fprintf(stderr,"free_out out_data.size %d\n",this->out_data.size());
 	this->out_mutex.lock();
 	this->out_data.push(ptr);
 	this->out_mutex.unlock();
+	if(debug) std::cerr << "free_out new out_data.size " << this->out_data.size() << endl;
 }
 
 bool DVBT_memory::write(uint8_t *ptr)
@@ -134,46 +137,49 @@ bool DVBT_memory::read(uint8_t *ptr)
 
 void DVBT_memory::read_thread()
 {
-	std::unique_lock<std::mutex> lock(this->in_signal_mutex);
 	uint8_t *ptr;
+	bool err;
 	do{
 		while(this->in_free.size() == 0)
 		{
-			in_cond_var.wait_for(lock,chrono::milliseconds(1));
+			usleep(100);
+			//in_cond_var.wait_for(lock,chrono::milliseconds(1));
 		}
 		
 		this->in_mutex.lock();
 		ptr = this->in_free.front();
 		this->in_free.pop();
 		this->in_mutex.unlock();
-		this->readerr = this->read(ptr);
+		err = this->read(ptr);
 		
 		this->in_mutex.lock();
 		this->in_data.push(ptr);
+		if(err)
+		{
+			this->in_data.push(NULL);
+		}
 		this->in_mutex.unlock();
 		
-		this->in_cond_var.notify_one();
-		usleep(100);
-		fprintf(stderr,"read_thread notify\n");
+		if(this->in_data.size() < 3){
+			std::unique_lock<std::mutex> lock(this->in_signal_mutex);
+			this->in_cond_var.notify_one();
+			if(debug) std::cerr << "read_thread notify" << endl;
+		}
 	}
-	while(!this->readerr && !this->writeerr);
+	while(!err);
 	this->in_cond_var.notify_one();
-	fprintf(stderr,"read_thread <<\n");
+	if(debug) std::cerr << "read_thread terminated" << endl;
 }
 
 void DVBT_memory::write_thread()
 {
-	std::unique_lock<std::mutex> lock(this->out_signal_mutex);
 	uint8_t *ptr;
+	bool err;
 	do{
-		if((this->out_data.size() == 0) && this->readerr)
-		{
-			this->writeerr = true;
-			break;
-		}
 		while(this->out_data.size() == 0)
 		{
-			out_cond_var.wait_for(lock,chrono::milliseconds(1));
+			usleep(100);
+			//out_cond_var.wait_for(lock,chrono::milliseconds(1));
 		}
 		
 		this->out_mutex.lock();
@@ -181,19 +187,24 @@ void DVBT_memory::write_thread()
 		this->out_data.pop();
 		this->out_mutex.unlock();
 		
-		this->writeerr = this->write(ptr);
+		if(ptr == NULL)
+			break;
+		
+		err = this->write(ptr);
 		
 		this->out_mutex.lock();
 		this->out_free.push(ptr);
 		this->out_mutex.unlock();
 		
-		this->out_cond_var.notify_one();
-		usleep(1000);
-		fprintf(stderr,"write_thread notify\n");
+		if(this->out_free.size() == 1){
+			std::unique_lock<std::mutex> lock(this->out_signal_mutex);
+			this->out_cond_var.notify_one();
+			if(debug) std::cerr << "write_thread notify" << endl;
+		}
 	}
-	while(!this->writeerr);
+	while(!err);
 	this->out_cond_var.notify_one();
-	fprintf(stderr,"write_thread <<\n");
+	if(debug) std::cerr << "write_thread terminated" << endl;
 }
 
 DVBT_memory::DVBT_memory( FILE *fd_i, FILE *fd_o, int in_multiple_of, int out_multiple_of, bool fixed )
@@ -214,8 +225,7 @@ DVBT_memory::DVBT_memory( FILE *fd_i, FILE *fd_o, int in_multiple_of, int out_mu
 	this->out_size = i * out_multiple_of;
 	this->in_multiple_of = in_multiple_of;
 	this->out_multiple_of = out_multiple_of;
-	readerr = false;
-	writeerr = false;
+
 	for(i=0;i<DVBTENC_BUFFERS;i++)
 	{
 		this->in_free.push(new uint8_t[this->in_size]);
@@ -227,13 +237,14 @@ DVBT_memory::DVBT_memory( FILE *fd_i, FILE *fd_o, int in_multiple_of, int out_mu
 
 DVBT_memory::~DVBT_memory()
 {
-	for(int i=0;i<DVBTENC_BUFFERS;i++)
+	for(int i=0;i<this->in_free.size();i++)
 	{
 		delete[] this->in_free.front();
-		delete[] this->out_free.front();
 		this->in_free.pop();
+	}
+	for(int i=0;i<this->out_free.size();i++)
+	{
+		delete[] this->out_free.front();
 		this->out_free.pop();
 	}
-	this->rt.join();
-	this->wt.join();
 }
