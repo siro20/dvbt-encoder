@@ -144,22 +144,28 @@ typedef void(*funcs)(FILE*,FILE*,DVBT_settings*);
 funcs FunctionPointers[] = {_proc_ed,_proc_rs,_proc_oi,_proc_ce,_proc_ii,_proc_si,_proc_sm,_proc_chan,_proc_ifft,_proc_quant};
 
 /* test function */
-DVBT_enc::DVBT_enc(FILE* in, FILE* out, DVBT_settings *dvbtsettings)
+DVBT_enc::DVBT_enc(FILE* fd_in, FILE* fd_out, DVBT_settings *dvbt_settings)
 {
 	int pipe_fd[2];
 	int i;
 	pid_t pid;
 	int fd;
 	
-	this->out = out;
-	this->dvbt_settings = dvbtsettings;
-
 	pipe(pipe_fd);
-	dup2(fileno(stdin), pipe_fd[1]);
-	close(fileno(stdin));
+	this->in = fdopen(pipe_fd[1], "w");
 	fd = pipe_fd[0];
 	
-	for(i=0;i<sizeof(FunctionPointers)/sizeof(funcs)-1;i++)
+	if(!fd_in)
+		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
+	if(!fd_out)
+		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
+		
+	this->dvbt_settings = dvbt_settings;
+	this->in_multiple_of = 8*188;
+	this->out_multiple_of = (this->dvbt_settings->ofdmmode + this->dvbt_settings->oversampling) * sizeof(dvbt_complex_t);
+	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
+	
+	for(i=0;i<sizeof(FunctionPointers)/sizeof(funcs);i++)
 	{
 		pipe(pipe_fd);
 		
@@ -188,7 +194,7 @@ DVBT_enc::DVBT_enc(FILE* in, FILE* out, DVBT_settings *dvbtsettings)
 		else
 			break;
 	}
-	this->next_fd = fd;
+	this->out = fdopen(fd, "r");
 }
 
 DVBT_enc::~DVBT_enc()
@@ -198,5 +204,46 @@ DVBT_enc::~DVBT_enc()
 
 void DVBT_enc::encode()
 {
-	FunctionPointers[sizeof(FunctionPointers)/sizeof(funcs)-1](fdopen(this->next_fd, "r"), fdopen(fileno(stdout), "w"),this->dvbt_settings);
+	bool readerr, writeerr;
+	int ret,offset;
+	uint8_t *in;
+	uint8_t *out;
+	readerr = false;
+	writeerr = false;
+	do{
+		if(!readerr)
+		{
+			in = this->mem->get_in();
+			if(!in)
+				readerr = true;
+			offset = 0;
+			while(offset < this->mem->in_size)
+			{
+				ret = fwrite(in+offset, sizeof(char), this->mem->in_size-offset, this->in);
+				if(ret <= 0){
+					readerr = true;
+					break;
+				}
+				offset += ret;
+			};
+			this->mem->free_in(in);
+		}
+		if(!writeerr){
+			out = this->mem->get_out();
+			if(!out)
+				writeerr = true;
+			
+			offset = 0;
+			while(offset < this->mem->out_size)
+			{
+				ret = fwrite(out+offset, sizeof(char), this->mem->out_size-offset, this->out);
+				if(ret <= 0){
+					writeerr = true;
+					break;
+				}
+				offset += ret;
+			};
+			this->mem->free_out(out);
+		}
+	}while(!readerr && !writeerr);
 }
