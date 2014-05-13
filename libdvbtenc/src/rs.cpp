@@ -165,15 +165,19 @@ bool DVBT_rs::encode( )
 	int i,n;
 	unsigned int wreg[4];
 	unsigned char shadow;
+	uint8_t *in;
+	uint8_t *out;
 	uint8_t *datain;
 	uint8_t *dataout;
-	datain = this->mem->get_in();
-	if(!datain)
+	in = this->mem->get_in();
+	if(!in)
 		return false;
-	dataout = this->mem->get_out();
-	if(!dataout)
+	out = this->mem->get_out();
+	if(!out)
 		return false;
 	n = this->mem->in_size;
+	datain = in;
+	dataout = out;
     do{
 		// clear register on each loop
 		memset( wreg, 0 , sizeof(int) * 4 );
@@ -229,8 +233,8 @@ bool DVBT_rs::encode( )
         n-=188;
     }while(n > 0);
     
-	this->mem->free_out(dataout);
-	this->mem->free_in(datain);
+	this->mem->free_out(out);
+	this->mem->free_in(in);
 	
 	return true;
 }
