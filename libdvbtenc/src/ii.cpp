@@ -50,6 +50,8 @@ bool DVBT_ii::encode()
 	int i,n;
 	uint8_t *out;
 	uint8_t *in;
+	uint8_t *outptr;
+	uint8_t *inptr;
 	static const uint8_t shiftreg_indx[6] = {0,63,105,42,21,84};
 	
 	in = this->mem->get_in();
@@ -58,21 +60,22 @@ bool DVBT_ii::encode()
 	out = this->mem->get_out();
 	if(!out)
 		return false;
-		
+	outptr = out;
+	inptr = in;
 	for(n=0;n<this->mem->in_size;n+=this->dvbt_settings->DVBT_II_DEPTH*this->dvbt_settings->modulation)
 	{
-		memset(out,0,this->dvbt_settings->DVBT_II_DEPTH);
+		memset(outptr,0,this->dvbt_settings->DVBT_II_DEPTH);
 		if(this->dvbt_settings->modulation==2)
 		{
 			for(i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
 			{
 				int off;
 				MOD126(i+shiftreg_indx[0], off)
-				if(in[off*2+0])
-					out[i] |= 0x02;
+				if(inptr[off*2+0])
+					outptr[i] |= 0x02;
 				MOD126(i+shiftreg_indx[1], off)
-				if(in[off*2+1])
-					out[i] |= 0x01;
+				if(inptr[off*2+1])
+					outptr[i] |= 0x01;
 			}
 		}
 		else if(this->dvbt_settings->modulation==4)
@@ -81,17 +84,17 @@ bool DVBT_ii::encode()
 			{
 				int off;
 				MOD126(i+shiftreg_indx[0], off)
-				if(in[off*4+0])
-					out[i] |= 0x08;
+				if(inptr[off*4+0])
+					outptr[i] |= 0x08;
 				MOD126(i+shiftreg_indx[1], off)
-				if(in[off*4+2])
-					out[i] |= 0x04;
+				if(inptr[off*4+2])
+					outptr[i] |= 0x04;
 				MOD126(i+shiftreg_indx[2], off)
-				if(in[off*4+1])
-					out[i] |= 0x02;
+				if(inptr[off*4+1])
+					outptr[i] |= 0x02;
 				MOD126(i+shiftreg_indx[3], off)
-				if(in[off*4+3])
-					out[i] |= 0x01;
+				if(inptr[off*4+3])
+					outptr[i] |= 0x01;
 			}
 		}
 		else
@@ -100,28 +103,28 @@ bool DVBT_ii::encode()
 			{
 				int off;
 				MOD126(i+shiftreg_indx[0], off)
-				if(in[off*6+0])
-					out[i] |= 0x20;
+				if(inptr[off*6+0])
+					outptr[i] |= 0x20;
 				MOD126(i+shiftreg_indx[1], off)
-				if(in[off*6+2])
-					out[i] |= 0x10;
+				if(inptr[off*6+2])
+					outptr[i] |= 0x10;
 				MOD126(i+shiftreg_indx[2], off)
-				if(in[off*6+4])
-					out[i] |= 0x08;
+				if(inptr[off*6+4])
+					outptr[i] |= 0x08;
 				MOD126(i+shiftreg_indx[3], off)
-				if(in[off*6+1])
-					out[i] |= 0x04;
+				if(inptr[off*6+1])
+					outptr[i] |= 0x04;
 				MOD126(i+shiftreg_indx[4], off)
-				if(in[off*6+3])
-					out[i] |= 0x02;
+				if(inptr[off*6+3])
+					outptr[i] |= 0x02;
 				MOD126(i+shiftreg_indx[5], off)
-				if(in[off*6+5])
-					out[i] |= 0x01;
+				if(inptr[off*6+5])
+					outptr[i] |= 0x01;
 					
 			}
 		}
-		out += this->dvbt_settings->DVBT_II_DEPTH;
-		in += this->dvbt_settings->DVBT_II_DEPTH*this->dvbt_settings->modulation;
+		outptr += this->dvbt_settings->DVBT_II_DEPTH;
+		inptr += this->dvbt_settings->DVBT_II_DEPTH*this->dvbt_settings->modulation;
 	};
 	
 	this->mem->free_out(out);
