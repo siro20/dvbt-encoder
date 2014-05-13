@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	DVBT_ii dvbtii(stdin,stdout,dvbtsettings);
-	while(!dvbtii.encode())
+	while(dvbtii.encode())
 	{
 	};
 

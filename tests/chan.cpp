@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 	symbol = 0;
 	frame = 0;
 	DVBT_chan dvbtchan(stdin,stdout,dvbtsettings);
-	while(!dvbtchan.encode(frame, symbol))
+	while(dvbtchan.encode(frame, symbol))
 	{
 		symbol++;
 		if(symbol == 68)
