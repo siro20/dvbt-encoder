@@ -68,7 +68,7 @@ bool DVBT_ifft::encode()
 	fftwf_execute(this->p);
 	
 	//insert <guardcarriers> to the beginning of the buffer
-	memcpy(out,out+this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling,
+	memcpy(out,out+this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling,
 		this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 	
 	fftwf_destroy_plan(this->p);
