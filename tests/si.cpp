@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 	int symbol;
 	DVBT_si dvbtsi(stdin,stdout,dvbtsettings);
 	symbol=0;
-	while(!dvbtsi.encode(symbol))
+	while(dvbtsi.encode(symbol))
 	{
 		symbol ^= 1;
 	};

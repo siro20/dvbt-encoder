@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 	}
 	DVBT_oi dvbtoi(stdin,stdout);
 
-	while(!dvbtoi.encode())
+	while(dvbtoi.encode())
 	{};
 
 	return 0;

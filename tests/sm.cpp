@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 	}
 	
 	DVBT_sm dvbtsm(stdin,stdout,dvbtsettings);
-	while(!dvbtsm.encode())
+	while(dvbtsm.encode())
 	{
 	};
 

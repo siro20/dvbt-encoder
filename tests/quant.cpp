@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 	}
 	DVBT_quant dvbtquant(stdin,stdout,dvbtsettings);
 
-	while(!dvbtquant.encode())
+	while(dvbtquant.encode())
 	{};
 
 	return 0;
