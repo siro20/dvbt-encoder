@@ -2,7 +2,7 @@
 make all
 LD_LIBRARY_PATH=../libdvbtenc/lib
 export LD_LIBRARY_PATH
-arguments="-o 2048 -b 8 -c 2 -g 32 -m 2 -a 1 -s 0"
+arguments="-o 2048 -b 8 -c 2 -g 32 -m 2 -a 1 -s 4"
 folderpath="ref_2K_4QAM_1_2_32"
 echo "****************"
 echo "testing 2K mode, bandwidth 8Mhz, coderate 1/2, guardinterval 1/32, modulation qpsk, alpha 1, outputformat float"
@@ -86,7 +86,7 @@ else
 fi
 rm ./output.bin
 
-arguments="-o 8192 -b 7 -c 3 -g 8 -m 4 -a 1 -s 0"
+arguments="-o 8192 -b 7 -c 3 -g 8 -m 4 -a 1 -s 4"
 folderpath="ref_8K_16QAM_2_3_8"
 echo "****************"
 echo "testing 8K mode, bandwidth 7Mhz, coderate 2/3, guardinterval 1/8, modulation 16QAM, alpha 1, outputformat float"
@@ -170,8 +170,7 @@ else
 fi
 rm ./output.bin
 
-
-arguments="-o 2048 -b 6 -c 4 -g 4 -m 6 -a 1 -s 0"
+arguments="-o 2048 -b 6 -c 4 -g 4 -m 6 -a 1 -s 4"
 folderpath="ref_2K_64QAM_3_4_4"
 echo "****************"
 echo "testing 2K mode, bandwidth 6Mhz, coderate 3/4, guardinterval 1/4, modulation 64QAM, alpha 1, outputformat float"
