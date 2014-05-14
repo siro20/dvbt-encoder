@@ -179,7 +179,9 @@ DVBT_enc::DVBT_enc(FILE* fd_in, FILE* fd_out, DVBT_settings *dvbt_settings)
 		if(!pid) // child
 		{
 			FILE *c_out,*c_in;
-			close(pipe_fd[0]);//close the r end
+			close(pipe_fd[0]); // close the read end
+			fclose(this->out); // close parent fd's
+			fclose(this->in);
 
 			c_out = fdopen(pipe_fd[1], "w"); //always write to pipe_fd[1]
 			//fprintf(stderr,"errno %d\n",errno);
@@ -221,12 +223,10 @@ void DVBT_enc::encode()
     waittime = (long)(8*8*188*1000000/this->dvbt_settings->mpegtsbitrate);
     
 	gettimeofday(&t1, NULL);
-	
 	while(1){
 		ret = fread(buf,sizeof(char),8*188,this->in);
 		if(ret <= 0)
 			break;
-			
 		ret = fwrite(buf,sizeof(char),8*188,this->out);
 		if(ret <= 0)
 			break;
