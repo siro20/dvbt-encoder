@@ -24,8 +24,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include <sys/time.h>
 
 void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
@@ -33,7 +32,8 @@ void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 
 	while(dvbted.encode())
 	{};
-
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -43,7 +43,8 @@ void _proc_rs(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 
 	while(dvbtrs.encode())
 	{};
-
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -53,7 +54,8 @@ void _proc_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 
 	while(dvbtoi.encode())
 	{};
-
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -63,7 +65,8 @@ void _proc_ce(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 
 	while(dvbtoi.encode())
 	{};
-
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -73,7 +76,8 @@ void _proc_ii(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 
 	while(dvbtii.encode())
 	{};
-
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -88,7 +92,8 @@ void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 		if(symbol == 68)
 			symbol = 0;
 	};
-
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -96,9 +101,9 @@ void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_sm dvbtsm(fd_in,fd_out,dvbtsettings);
 	while(dvbtsm.encode())
-	{
-	};
-
+	{};
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -119,6 +124,8 @@ void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 			frame %= 4;
 		}
 	};
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -126,8 +133,9 @@ void _proc_ifft(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ifft dvbtifft(fd_in,fd_out,dvbtsettings);
 	while(dvbtifft.encode())
-	{
-	};
+	{};
+	fclose(fd_in);
+	fclose(fd_out);
 	exit(0);
 }
 
@@ -135,9 +143,9 @@ void _proc_quant(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_quant dvbtquant(fd_in,fd_out,dvbtsettings);
 	while(dvbtquant.encode())
-	{
-	};
-	exit(0);
+	{};
+	fclose(fd_in);
+	fclose(fd_out);
 }
 
 typedef void(*funcs)(FILE*,FILE*,DVBT_settings*);
@@ -151,8 +159,9 @@ DVBT_enc::DVBT_enc(FILE* fd_in, FILE* fd_out, DVBT_settings *dvbt_settings)
 	pid_t pid;
 	int fd;
 	
+	this->in = fd_in;
 	pipe(pipe_fd);
-	this->in = fdopen(pipe_fd[1], "w");
+	this->out = fdopen(pipe_fd[1], "w");
 	fd = pipe_fd[0];
 	
 	if(!fd_in)
@@ -161,11 +170,8 @@ DVBT_enc::DVBT_enc(FILE* fd_in, FILE* fd_out, DVBT_settings *dvbt_settings)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
 		
 	this->dvbt_settings = dvbt_settings;
-	this->in_multiple_of = 8*188;
-	this->out_multiple_of = (this->dvbt_settings->ofdmmode + this->dvbt_settings->oversampling) * sizeof(dvbt_complex_t);
-	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
 	
-	for(i=0;i<sizeof(FunctionPointers)/sizeof(funcs);i++)
+	for(i=0;i<sizeof(FunctionPointers)/sizeof(funcs)-1;i++)
 	{
 		pipe(pipe_fd);
 		
@@ -194,7 +200,7 @@ DVBT_enc::DVBT_enc(FILE* fd_in, FILE* fd_out, DVBT_settings *dvbt_settings)
 		else
 			break;
 	}
-	this->out = fdopen(fd, "r");
+	this->wt = thread(FunctionPointers[sizeof(FunctionPointers)/sizeof(funcs)-1], fdopen(fd, "r"), fd_out, this->dvbt_settings);
 }
 
 DVBT_enc::~DVBT_enc()
@@ -204,46 +210,40 @@ DVBT_enc::~DVBT_enc()
 
 void DVBT_enc::encode()
 {
-	bool readerr, writeerr;
-	int ret,offset;
-	uint8_t *in;
-	uint8_t *out;
-	readerr = false;
-	writeerr = false;
-	do{
-		if(!readerr)
-		{
-			in = this->mem->get_in();
-			if(!in)
-				readerr = true;
-			offset = 0;
-			while(offset < this->mem->in_size)
-			{
-				ret = fwrite(in+offset, sizeof(char), this->mem->in_size-offset, this->in);
-				if(ret <= 0){
-					readerr = true;
-					break;
-				}
-				offset += ret;
-			};
-			this->mem->free_in(in);
-		}
-		if(!writeerr){
-			out = this->mem->get_out();
-			if(!out)
-				writeerr = true;
+	bool err;
+	int ret;
+	long waittime;
+	
+	uint8_t *buf;
+	err = false;
+	buf = new uint8_t[8*188];
+	struct timeval t1,t2;
+    waittime = (long)(8*8*188*1000000/this->dvbt_settings->mpegtsbitrate);
+    
+	gettimeofday(&t1, NULL);
+	
+	while(1){
+		ret = fread(buf,sizeof(char),8*188,this->in);
+		if(ret <= 0)
+			break;
 			
-			offset = 0;
-			while(offset < this->mem->out_size)
-			{
-				ret = fwrite(out+offset, sizeof(char), this->mem->out_size-offset, this->out);
-				if(ret <= 0){
-					writeerr = true;
-					break;
-				}
-				offset += ret;
-			};
-			this->mem->free_out(out);
-		}
-	}while(!readerr && !writeerr);
+		ret = fwrite(buf,sizeof(char),8*188,this->out);
+		if(ret <= 0)
+			break;
+		while(1){
+			long diff;
+			gettimeofday(&t2, NULL);
+			diff = t2.tv_sec*1000000+t2.tv_usec-waittime-t1.tv_sec*1000000+t1.tv_usec;
+			if(diff >= 0){
+				break;
+			}
+			usleep(-diff);
+		};
+		gettimeofday(&t1, NULL);
+	};
+
+	fclose(this->in);
+	fclose(this->out);
+	this->wt.join();
+	delete[] buf;
 }

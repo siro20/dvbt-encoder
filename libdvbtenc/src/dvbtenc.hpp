@@ -43,9 +43,9 @@ public:
 	void encode();
 	~DVBT_enc();
 private:
-	char* randomString();
-	int next_fd;
+	FILE* in;
 	FILE* out;
+	thread wt;
 	DVBT_settings* dvbt_settings;
 };
 
