@@ -24,16 +24,21 @@ Supported Modes:
 Tested Modes:
 ------------------------
 * IFFT size 2K
-* coderate 1/2
+* coderate 1/2, 3/4, 4/5
 * modulation 16QAM
-* guard interval 1/4
+* guard interval 1/4, 1/8, 1/16
 * oversampling 2x
 * output format float
 
 TODO:
 ---------------
 fix thread signals
+fix 64QAM mapping
 
 Encoding speed:
 ---------------
 Realtime on Intel(R) Core(TM) i5-3450
+
+features:
+--------------
+multiple processes for efficient multicore usage 
