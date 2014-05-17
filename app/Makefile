@@ -1,0 +1,40 @@
+
+WRKDIR = %cd%
+
+CC = gcc
+CPP = g++
+LD = g++
+AR = ar
+
+INC = -I. -I/usr/include -I../libdvbtenc/include -I../libdvbtenc/src
+CPPFLAGS = -Wall -msse -msse2 -msse3 -Wextra -ffast-math -march=native -pedantic -std=gnu++11
+RESINC = 
+RCFLAGS = 
+LIBDIR = -L../libdvbtenc/lib
+LIB = -ldvbtenc -lfftw3f
+LDFLAGS = $(LIBDIR) $(LIB)
+
+INC_RELEASE = $(INC)
+CFLAGS_RELEASE = $(CPPFLAGS) -O2 $(LDFLAGS)
+RESINC_RELEASE = $(RESINC)
+RCFLAGS_RELEASE = $(RCFLAGS)
+LIBDIR_RELEASE = $(LIBDIR)
+LIB_RELEASE = $(LIB)
+LDFLAGS_RELEASE = $(LDFLAGS) -s
+OBJDIR_RELEASE = obj
+
+%: %.cpp
+	$(CPP) $(CFLAGS_RELEASE) $(INC_RELEASE) -o $@ $< 
+
+all: libdvbtenc $(basename $(wildcard *.cpp))
+
+libdvbtenc:
+	cd ../libdvbtenc/ && $(MAKE) all
+
+clean: clean_release
+
+clean_release:
+	rm -rf $(basename $(wildcard *.cpp))
+
+.PHONY: clean clean_release
+
