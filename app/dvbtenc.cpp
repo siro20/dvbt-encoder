@@ -65,16 +65,19 @@ int main(int argc, char *argv[])
 	int outputformat;
 	float gain;
 	int opt;
-	struct timeval t1,t2;
 	DVBT_settings *dvbtsettings;
+	bool print_mpegtsbitrate;
+	bool print_samplerate;
 
 	oversampling = 1;
 	alpha = 1;
 	cellid = 0;
 	gain = 1.0f;
-	
+	print_mpegtsbitrate = false;
+	print_samplerate = false;
+
 	opterr = 0;
-	while ((opt = getopt(argc, argv, "to:b:c:g:m:a:i:s:f:z:v:")) != -1)
+	while ((opt = getopt(argc, argv, "to:b:c:g:m:a:i:s:f:v:zp")) != -1)
 	{
 		switch (opt)
 		{
@@ -113,6 +116,13 @@ int main(int argc, char *argv[])
 			break;
 		case '?':
 			fprintf(stderr, "unknown arg %c\n", optopt);
+			return 1;
+		break;
+		case 'p':
+			print_mpegtsbitrate = true;
+		break;
+		case 'z':
+			print_samplerate = true;
 		break;
 		}
 	}
@@ -125,11 +135,17 @@ int main(int argc, char *argv[])
 		fprintf(stderr,"failed to init DVBT_Settings\n");
 		return 1;
 	}
-	gettimeofday(&t1, NULL);
+	if(print_mpegtsbitrate){
+		cout << (unsigned long)(dvbtsettings->mpegtsbitrate) << endl;
+		return 0;
+	}
+	else if(print_samplerate){
+		cout << (unsigned long)(dvbtsettings->symbolrate*dvbtsettings->oversampling) << endl;
+		return 0;
+	}
+
 	DVBT_enc dvbtenc(stdin,stdout,dvbtsettings);
 	dvbtenc.encode();
-	gettimeofday(&t2, NULL);
-	cerr << "took " << t2.tv_sec*1000000+t2.tv_usec - (t1.tv_sec*1000000+t1.tv_usec) << " usecs" << endl;
 	return 0;
 }
 
