@@ -27,6 +27,9 @@
 
 using namespace std;
 
+#define OI_SIZE 12
+#define OI_DEPTH 17
+
 class DVBT_oi
 {
 public:
@@ -37,7 +40,7 @@ protected:
 	DVBT_memory *mem;
 	FILE *fd_in;
 	FILE *fd_out;
-	uint8_t *oi_buf;
+	queue<uint8_t> oi_queues[OI_SIZE];
 	int in_multiple_of;
 	int out_multiple_of;
 };

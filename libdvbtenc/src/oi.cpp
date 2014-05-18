@@ -18,14 +18,10 @@
 
 #include "oi.hpp"
 
-#define OI_SIZE 12
-#define OI_DEPTH 17
-#define OI_BUFSIZE (OI_DEPTH * (1+2+3+4+5+6+7+8+9+10+11)+12)
-
 DVBT_oi::DVBT_oi(FILE *fd_in, FILE *fd_out)
 {
-	this->in_multiple_of = 12;
-	this->out_multiple_of = 12;
+	this->in_multiple_of = OI_SIZE;
+	this->out_multiple_of = OI_SIZE;
 	if(!fd_in)
 		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
 	if(!fd_out)
@@ -34,20 +30,25 @@ DVBT_oi::DVBT_oi(FILE *fd_in, FILE *fd_out)
 
 	this->fd_in = fd_in;
 	this->fd_out = fd_out;
-	this->oi_buf = new uint8_t[OI_BUFSIZE];
-	memset(this->oi_buf, 0, OI_BUFSIZE);
+	
+	for(int i=0;i<OI_SIZE;i++)
+	{
+		for(int j=0;j<i*OI_DEPTH;j++)
+		{
+			this->oi_queues[i].push(0);
+		}
+	}
 }
 
 DVBT_oi::~DVBT_oi()
 {
-	delete[] this->oi_buf;
 }
 
 bool DVBT_oi::encode()
 /* interleave data byteswise, oi_buf has size 17*(1+2+3+4+5+6+7+8+9+10+11) + 12, reset on startup, n has to be multiple of 12 */
 /* data written to data_out is same as data_cnt */
 {
-	int i,j,k;
+	int i,k;
 	unsigned char *p_oi_buf;
 	uint8_t *in;
 	uint8_t *out;
@@ -58,30 +59,19 @@ bool DVBT_oi::encode()
 	out = this->mem->get_out();
 	if(!out)
 		return false;
-
+    k = 0;
 	for(i=0;i<this->mem->in_size;i++)
 	{
-		/* TODO: use counter for better performance ? */
-		j = ( i % OI_SIZE );
-		if( j == 0 )
-			p_oi_buf = this->oi_buf;
-		
 		/* insert new byte into buffer */
-		p_oi_buf[0] = in[i];
+		this->oi_queues[k].push(in[i]);
 		
 		/* copy last byte from buffer */
-		out[i] = p_oi_buf[j * OI_DEPTH];
-		
-		/* shift depth * j bytes */
-		for(k = j * OI_DEPTH; k > 0; k--)
-		{
-			p_oi_buf[k] = p_oi_buf[k-1];
-		}
-		
-		/* increment pointer to next buffer */
-		p_oi_buf += j * OI_DEPTH + 1;
+		out[i] = this->oi_queues[k].front(); 
+		this->oi_queues[k].pop();
+		k++;
+		if(k == OI_SIZE)
+			k = 0;
 	}
-
 	this->mem->free_out(out);
 	this->mem->free_in(in);
 
