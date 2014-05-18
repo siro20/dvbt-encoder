@@ -126,7 +126,7 @@ DVBT_rs::~DVBT_rs()
 
 // define a helper function doing the galois multiplication on 16 bytes at once
 // wreg points to a 16 byte array, shadow is the byte shifted out last round
-void DVBT_rs::galois_mult( unsigned int *wreg, unsigned char shadow )
+void DVBT_rs::galois_mult( uint32_t *wreg, uint8_t shadow )
 {
 	int j;
 	// using precalculated polynom, this encodes 16 bytes at once
@@ -143,20 +143,25 @@ void DVBT_rs::galois_mult( unsigned int *wreg, unsigned char shadow )
 		{204,206,62,248,189,252,187,116,67,7,57,227,87,56,247,204}
 	};
 	/* galois multiplication */
-    for(j=0;j<8;j++)
-    {
-        /* test every bit in shadow */
-            if(shadow & 1)
-            {
-                /* do 32 bit arithmetics */
-                uint32_t *xor_ptr = (uint32_t*)&xor_array[j][0];
-                wreg[0] ^= xor_ptr[0];
-                wreg[1] ^= xor_ptr[1];
-                wreg[2] ^= xor_ptr[2];
-                wreg[3] ^= xor_ptr[3];
-            }
-            shadow >>=1;
-    }
+	for(j=0;j<8;j++)
+	{
+		/* test every bit in shadow */
+			if(shadow & 1)
+			{
+#if _WIN64 || __amd64__
+				uint64_t *xor_ptr = (uint64_t*)&xor_array[j][0];
+				((uint64_t*)wreg)[0] ^= xor_ptr[0];
+				((uint64_t*)wreg)[1] ^= xor_ptr[1];
+#else
+				uint32_t *xor_ptr = (uint32_t*)&xor_array[j][0];
+				wreg[0] ^= xor_ptr[0];
+				wreg[1] ^= xor_ptr[1];
+				wreg[2] ^= xor_ptr[2];
+				wreg[3] ^= xor_ptr[3];
+#endif
+			}
+			shadow >>=1;
+	}
 }
 
 // software implementation of rs encoder

@@ -57,7 +57,7 @@ public:
     ~DVBT_rs();
     bool encode();
 private:
-    void galois_mult( unsigned int *wreg, unsigned char shadow );
+    void galois_mult( uint32_t *wreg, uint8_t shadow );
     void gen_poly();
 	void generate_gf();
 	

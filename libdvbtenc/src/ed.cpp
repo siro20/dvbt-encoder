@@ -87,13 +87,19 @@ bool DVBT_ed::encode()
 	out = this->mem->get_out();
 	if(!out)
 		return false;
-	
-	for(i=0;i<this->mem->in_size;i++)
+		
+//TODO add counter to prevent modulo
+#if _WIN64 || __amd64__
+	for(i=0;i<this->mem->in_size/sizeof(uint64_t);i++)
 	{
-		//TODO add counter to prevent modulo
-		out[i] = in[i] ^ this->pbrs_seq[i%(8*188)];
+		((uint64_t*)out)[i] = ((uint64_t*)in)[i] ^ ((uint64_t*)this->pbrs_seq)[i%(8*188/sizeof(uint64_t))];
 	}
-	
+#else
+	for(i=0;i<this->mem->in_size/sizeof(uint32_t);i++)
+	{
+		((uint32_t*)out)[i] = ((uint32_t*)in)[i] ^ ((uint32_t*)this->pbrs_seq)[i%(8*188/sizeof(uint32_t))];
+	}
+#endif
 	this->mem->free_out(out);
 	this->mem->free_in(in);
 	
