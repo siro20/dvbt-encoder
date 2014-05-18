@@ -7,24 +7,14 @@ LD = g++
 AR = ar
 
 INC = -I. -I/usr/include -I../libdvbtenc/include -I../libdvbtenc/src
-CPPFLAGS = -Wall -msse -msse2 -msse3 -Wextra -ffast-math -march=native -pedantic -std=gnu++11
+CPPFLAGS = -Wall -msse -msse2 -msse3 -Wextra -ffast-math -march=native -pedantic -std=gnu++11 -O2
 RESINC = 
 RCFLAGS = 
-LIBDIR = -L../libdvbtenc/lib
-LIB = -ldvbtenc -lfftw3f
+LIB = -lfftw3f
 LDFLAGS = $(LIBDIR) $(LIB)
 
-INC_RELEASE = $(INC)
-CFLAGS_RELEASE = $(CPPFLAGS) -O2 $(LDFLAGS)
-RESINC_RELEASE = $(RESINC)
-RCFLAGS_RELEASE = $(RCFLAGS)
-LIBDIR_RELEASE = $(LIBDIR)
-LIB_RELEASE = $(LIB)
-LDFLAGS_RELEASE = $(LDFLAGS) -s
-OBJDIR_RELEASE = obj
-
 %: %.cpp
-	$(CPP) $(CFLAGS_RELEASE) $(INC_RELEASE) -o $@ $< 
+	$(CPP) $(CPPFLAGS) $(INC) $(LDFLAGS) -o $@ $< ../libdvbtenc/lib/libdvbtenc.a 
 
 all: libdvbtenc $(basename $(wildcard *.cpp))
 
