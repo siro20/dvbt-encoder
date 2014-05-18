@@ -68,14 +68,21 @@ int main(int argc, char *argv[])
 	DVBT_settings *dvbtsettings;
 	bool print_mpegtsbitrate;
 	bool print_samplerate;
-
+	
+	ofdmmode = 2048;
+	bandwidth = 8;
+	coderate = 3;
+	guardinterval = 4;
+	modulation = 4;
 	oversampling = 1;
 	alpha = 1;
 	cellid = 0;
 	gain = 1.0f;
+	outputformat = 4;
+	
 	print_mpegtsbitrate = false;
 	print_samplerate = false;
-
+	
 	opterr = 0;
 	while ((opt = getopt(argc, argv, "to:b:c:g:m:a:i:s:f:v:zp")) != -1)
 	{
