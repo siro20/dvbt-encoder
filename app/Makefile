@@ -10,7 +10,7 @@ INC = -I. -I/usr/include -I../libdvbtenc/include -I../libdvbtenc/src
 CPPFLAGS = -Wall -msse -msse2 -msse3 -Wextra -ffast-math -march=native -pedantic -std=gnu++11 -O2
 RESINC = 
 RCFLAGS = 
-LIB = -lfftw3f
+LIB = -lfftw3f -lpthread
 LDFLAGS = $(LIBDIR) $(LIB)
 
 %: %.cpp
