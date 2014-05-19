@@ -62,8 +62,8 @@ private:
 	mutex out_mutex;
 	mutex in_signal_mutex;
 	mutex out_signal_mutex;
-	condition_variable in_cond_var;
-	condition_variable out_cond_var;
+	condition_variable in_wait_empty;
+	condition_variable out_wait_empty;
 	bool readerr;
 	bool writeerr;
 };
