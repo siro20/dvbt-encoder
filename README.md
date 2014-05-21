@@ -42,3 +42,7 @@ Realtime on Intel(R) Core(TM) i5-3450
 features:
 --------------
 multiple processes for efficient multicore usage 
+
+supported platforms:
+-------------
+* posix compatible
