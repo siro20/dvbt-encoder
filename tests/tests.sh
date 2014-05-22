@@ -212,7 +212,7 @@ if cmp -b -n $(stat -c %s "./$folderpath/output_bi.bin") -b ./$folderpath/output
 else
   echo bi different
 fi
-#rm /tmp/output_bi_cmp.bin
+rm /tmp/output_bi_cmp.bin
 
 cat ./$folderpath/output_bi.bin | ./si $arguments > /tmp/output_si_cmp.bin
 if cmp -b -n $(stat -c %s "./$folderpath/output_si.bin") -b ./$folderpath/output_si.bin /tmp/output_si_cmp.bin ; then
