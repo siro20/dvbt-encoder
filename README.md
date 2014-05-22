@@ -33,7 +33,6 @@ Tested Modes:
 TODO:
 ---------------
 fix thread signals
-fix 64QAM mapping
 
 Encoding speed:
 ---------------

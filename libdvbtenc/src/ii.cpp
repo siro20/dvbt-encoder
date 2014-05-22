@@ -106,16 +106,16 @@ bool DVBT_ii::encode()
 				if(inptr[off*6+0])
 					outptr[i] |= 0x20;
 				MOD126(i+shiftreg_indx[1], off)
-				if(inptr[off*6+2])
+				if(inptr[off*6+3])
 					outptr[i] |= 0x10;
 				MOD126(i+shiftreg_indx[2], off)
-				if(inptr[off*6+4])
+				if(inptr[off*6+1])
 					outptr[i] |= 0x08;
 				MOD126(i+shiftreg_indx[3], off)
-				if(inptr[off*6+1])
+				if(inptr[off*6+4])
 					outptr[i] |= 0x04;
 				MOD126(i+shiftreg_indx[4], off)
-				if(inptr[off*6+3])
+				if(inptr[off*6+2])
 					outptr[i] |= 0x02;
 				MOD126(i+shiftreg_indx[5], off)
 				if(inptr[off*6+5])
