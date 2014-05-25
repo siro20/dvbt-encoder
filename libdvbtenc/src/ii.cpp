@@ -104,8 +104,8 @@ bool DVBT_ii::encode()
 			int idx=0;
 			for(i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
 			{
-				outptr[i] |= inptr[this->lookup[idx]] ? 0x02 : 0;
-				outptr[i] |= inptr[this->lookup[idx]] ? 0x01 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x02 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x01 : 0;
 			}
 		}
 		else if(this->dvbt_settings->modulation==4)
