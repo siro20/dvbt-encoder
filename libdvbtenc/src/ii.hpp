@@ -39,6 +39,7 @@ private:
 	FILE *fd_out;
 	int in_multiple_of;
 	int out_multiple_of;
+	int *lookup;
 	DVBT_memory *mem;
 	DVBT_settings* dvbt_settings;
 };

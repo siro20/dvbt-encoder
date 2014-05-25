@@ -22,6 +22,7 @@ using namespace std;
 
 DVBT_ii::DVBT_ii(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 {
+	int idx;
 	this->fd_in = fd_in;
 	this->fd_out = fd_out;
 	this->dvbt_settings = dvbt_settings;
@@ -35,11 +36,45 @@ DVBT_ii::DVBT_ii(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
 		
 	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
-
+	this->lookup = new int[this->dvbt_settings->modulation * this->dvbt_settings->DVBT_II_DEPTH];
+	
+	static const uint8_t shiftreg_indx[6] = {0,63,105,42,21,84};
+	
+	if(this->dvbt_settings->modulation==2)
+	{
+		for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
+		{
+			lookup[idx++] = ((i+shiftreg_indx[0])%126)*2+0;
+			lookup[idx++] = ((i+shiftreg_indx[1])%126)*2+1;
+		}
+	}
+	else if(this->dvbt_settings->modulation==4)
+	{
+		for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
+		{
+			lookup[idx++] = ((i+shiftreg_indx[0])%126)*4+0;
+			lookup[idx++] = ((i+shiftreg_indx[1])%126)*4+2;
+			lookup[idx++] = ((i+shiftreg_indx[2])%126)*4+1;
+			lookup[idx++] = ((i+shiftreg_indx[3])%126)*4+3;
+		}
+	}
+	else
+	{
+		for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
+		{
+			lookup[idx++] = ((i+shiftreg_indx[0])%126)*6+0;
+			lookup[idx++] = ((i+shiftreg_indx[1])%126)*6+3;
+			lookup[idx++] = ((i+shiftreg_indx[2])%126)*6+1;
+			lookup[idx++] = ((i+shiftreg_indx[3])%126)*6+4;
+			lookup[idx++] = ((i+shiftreg_indx[4])%126)*6+2;
+			lookup[idx++] = ((i+shiftreg_indx[5])%126)*6+5;
+		}
+	}
 }
 
 DVBT_ii::~DVBT_ii()
 {
+	delete[] this->lookup;
 }
 
 //simple modulo 126 for numbers smaller than 2*126
@@ -52,7 +87,6 @@ bool DVBT_ii::encode()
 	uint8_t *in;
 	uint8_t *outptr;
 	uint8_t *inptr;
-	static const uint8_t shiftreg_indx[6] = {0,63,105,42,21,84};
 	
 	in = this->mem->get_in();
 	if(!in)
@@ -67,60 +101,35 @@ bool DVBT_ii::encode()
 		memset(outptr,0,this->dvbt_settings->DVBT_II_DEPTH);
 		if(this->dvbt_settings->modulation==2)
 		{
+			int idx=0;
 			for(i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
 			{
-				int off;
-				MOD126(i+shiftreg_indx[0], off)
-				if(inptr[off*2+0])
-					outptr[i] |= 0x02;
-				MOD126(i+shiftreg_indx[1], off)
-				if(inptr[off*2+1])
-					outptr[i] |= 0x01;
+				outptr[i] |= inptr[this->lookup[idx]] ? 0x02 : 0;
+				outptr[i] |= inptr[this->lookup[idx]] ? 0x01 : 0;
 			}
 		}
 		else if(this->dvbt_settings->modulation==4)
 		{
+			int idx=0;
 			for(i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
 			{
-				int off;
-				MOD126(i+shiftreg_indx[0], off)
-				if(inptr[off*4+0])
-					outptr[i] |= 0x08;
-				MOD126(i+shiftreg_indx[1], off)
-				if(inptr[off*4+2])
-					outptr[i] |= 0x04;
-				MOD126(i+shiftreg_indx[2], off)
-				if(inptr[off*4+1])
-					outptr[i] |= 0x02;
-				MOD126(i+shiftreg_indx[3], off)
-				if(inptr[off*4+3])
-					outptr[i] |= 0x01;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x08 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x04 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x02 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x01 : 0;
 			}
 		}
 		else
 		{
+			int idx=0;
 			for(i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
 			{
-				int off;
-				MOD126(i+shiftreg_indx[0], off)
-				if(inptr[off*6+0])
-					outptr[i] |= 0x20;
-				MOD126(i+shiftreg_indx[1], off)
-				if(inptr[off*6+3])
-					outptr[i] |= 0x10;
-				MOD126(i+shiftreg_indx[2], off)
-				if(inptr[off*6+1])
-					outptr[i] |= 0x08;
-				MOD126(i+shiftreg_indx[3], off)
-				if(inptr[off*6+4])
-					outptr[i] |= 0x04;
-				MOD126(i+shiftreg_indx[4], off)
-				if(inptr[off*6+2])
-					outptr[i] |= 0x02;
-				MOD126(i+shiftreg_indx[5], off)
-				if(inptr[off*6+5])
-					outptr[i] |= 0x01;
-					
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x20 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x10 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x08 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x04 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x02 : 0;
+				outptr[i] |= inptr[this->lookup[idx++]] ? 0x01 : 0;
 			}
 		}
 		outptr += this->dvbt_settings->DVBT_II_DEPTH;
