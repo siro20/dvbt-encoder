@@ -66,6 +66,7 @@ DVBT_ed::DVBT_ed(FILE *fd_in, FILE *fd_out)
 
 	this->fd_in = fd_in;
 	this->fd_out = fd_out;
+	this->cnt = 0;
 }
 
 DVBT_ed::~DVBT_ed()
@@ -88,16 +89,21 @@ bool DVBT_ed::encode()
 	if(!out)
 		return false;
 		
-//TODO add counter to prevent modulo
 #if _WIN64 || __amd64__
 	for(i=0;i<this->mem->in_size/sizeof(uint64_t);i++)
 	{
-		((uint64_t*)out)[i] = ((uint64_t*)in)[i] ^ ((uint64_t*)this->pbrs_seq)[i%(8*188/sizeof(uint64_t))];
+		((uint64_t*)out)[i] = ((uint64_t*)in)[i] ^ ((uint64_t*)this->pbrs_seq)[this->cnt];
+		this->cnt ++;
+		if( this->cnt >= 188*8/sizeof(uint64_t) )
+			this->cnt = 0;
 	}
 #else
 	for(i=0;i<this->mem->in_size/sizeof(uint32_t);i++)
 	{
-		((uint32_t*)out)[i] = ((uint32_t*)in)[i] ^ ((uint32_t*)this->pbrs_seq)[i%(8*188/sizeof(uint32_t))];
+		((uint32_t*)out)[i] = ((uint32_t*)in)[i] ^ ((uint32_t*)this->pbrs_seq)[this->cnt];
+		this->cnt ++;
+		if( this->cnt >= 188*8/sizeof(uint32_t) )
+			this->cnt = 0;
 	}
 #endif
 	this->mem->free_out(out);

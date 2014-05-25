@@ -38,6 +38,7 @@ protected:
 	uint8_t * internal_buf;
 	FILE *fd_in;
 	FILE *fd_out;
+	unsigned int cnt;
 	int in_multiple_of;
 	int out_multiple_of;
 	DVBT_memory *mem;
