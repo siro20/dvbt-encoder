@@ -77,9 +77,6 @@ DVBT_ii::~DVBT_ii()
 	delete[] this->lookup;
 }
 
-//simple modulo 126 for numbers smaller than 2*126
-#define MOD126(x,y) if((x) >= 126) y=(x)-126; else y=x;
-
 bool DVBT_ii::encode()
 {
 	int i,n;
