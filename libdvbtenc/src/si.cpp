@@ -125,7 +125,6 @@ DVBT_si::~DVBT_si()
 bool DVBT_si::encode(int symbol)
 {
 	int i;
-	int rret, wret;
 	uint8_t *out;
 	uint8_t *in;
 	
