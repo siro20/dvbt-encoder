@@ -30,6 +30,14 @@ else
 fi
 rm /tmp/output_ci_cmp.bin
 
+cat ./$folderpath/test.m2v | ./ed_rs_oi $arguments > /tmp/output_ed_rs_oi_cmp.bin
+if cmp -n $(stat -c %s "./$folderpath/output_ci.bin") -b ./$folderpath/output_ci.bin /tmp/output_ed_rs_oi_cmp.bin ; then
+  echo ed_rs_oi same
+else
+  echo ed_rs_oi different
+fi
+rm /tmp/output_ed_rs_oi_cmp.bin
+
 cat ./$folderpath/output_ci.bin | ./ce $arguments > /tmp/output_pu_cmp.bin
 if cmp -n $(stat -c %s "./$folderpath/output_pu.bin") -b ./$folderpath/output_pu.bin /tmp/output_pu_cmp.bin ; then
   echo ce+puncturing same
@@ -61,6 +69,14 @@ else
   echo ma different
 fi
 rm /tmp/output_ma_cmp.bin
+
+cat ./$folderpath/output_bi.bin | ./si_sm $arguments > /tmp/output_si_sm_cmp.bin
+if cmp -b -n $(stat -c %s "./$folderpath/output_ma.bin") -b ./$folderpath/output_ma.bin /tmp/output_si_sm_cmp.bin ; then
+  echo si_sm same
+else
+  echo si_sm different
+fi
+rm /tmp/output_si_sm_cmp.bin
 
 cat ./$folderpath/output_ma.bin | ./chan $arguments > /tmp/output_fd_cmp.bin
 if cmp -b -n $(stat -c %s "./$folderpath/output_fd.bin") -b ./$folderpath/output_fd.bin /tmp/output_fd_cmp.bin ; then
@@ -114,6 +130,14 @@ else
 fi
 rm /tmp/output_ci_cmp.bin
 
+cat ./$folderpath/test.m2v | ./ed_rs_oi $arguments > /tmp/output_ed_rs_oi_cmp.bin
+if cmp -n $(stat -c %s "./$folderpath/output_ci.bin") -b ./$folderpath/output_ci.bin /tmp/output_ed_rs_oi_cmp.bin ; then
+  echo ed_rs_oi same
+else
+  echo ed_rs_oi different
+fi
+rm /tmp/output_ed_rs_oi_cmp.bin
+
 cat ./$folderpath/output_ci.bin | ./ce $arguments > /tmp/output_pu_cmp.bin
 if cmp -n $(stat -c %s "./$folderpath/output_pu.bin") -b ./$folderpath/output_pu.bin /tmp/output_pu_cmp.bin ; then
   echo ce+puncturing same
@@ -145,6 +169,14 @@ else
   echo ma different
 fi
 rm /tmp/output_ma_cmp.bin
+
+cat ./$folderpath/output_bi.bin | ./si_sm $arguments > /tmp/output_si_sm_cmp.bin
+if cmp -b -n $(stat -c %s "./$folderpath/output_ma.bin") -b ./$folderpath/output_ma.bin /tmp/output_si_sm_cmp.bin ; then
+  echo si_sm same
+else
+  echo si_sm different
+fi
+rm /tmp/output_si_sm_cmp.bin
 
 cat ./$folderpath/output_ma.bin | ./chan $arguments > /tmp/output_fd_cmp.bin
 if cmp -b -n $(stat -c %s "./$folderpath/output_fd.bin") -b ./$folderpath/output_fd.bin /tmp/output_fd_cmp.bin ; then
@@ -198,6 +230,14 @@ else
 fi
 rm /tmp/output_ci_cmp.bin
 
+cat ./$folderpath/test.m2v | ./ed_rs_oi $arguments > /tmp/output_ed_rs_oi_cmp.bin
+if cmp -n $(stat -c %s "./$folderpath/output_ci.bin") -b ./$folderpath/output_ci.bin /tmp/output_ed_rs_oi_cmp.bin ; then
+  echo ed_rs_oi same
+else
+  echo ed_rs_oi different
+fi
+rm /tmp/output_ed_rs_oi_cmp.bin
+
 cat ./$folderpath/output_ci.bin | ./ce $arguments > /tmp/output_pu_cmp.bin
 if cmp -n $(stat -c %s "./$folderpath/output_pu.bin") -b ./$folderpath/output_pu.bin /tmp/output_pu_cmp.bin ; then
   echo ce+puncturing same
@@ -229,6 +269,14 @@ else
   echo ma different
 fi
 rm /tmp/output_ma_cmp.bin
+
+cat ./$folderpath/output_bi.bin | ./si_sm $arguments > /tmp/output_si_sm_cmp.bin
+if cmp -b -n $(stat -c %s "./$folderpath/output_ma.bin") -b ./$folderpath/output_ma.bin /tmp/output_si_sm_cmp.bin ; then
+  echo si_sm same
+else
+  echo si_sm different
+fi
+rm /tmp/output_si_sm_cmp.bin
 
 cat ./$folderpath/output_ma.bin | ./chan $arguments > /tmp/output_fd_cmp.bin
 if cmp -b -n $(stat -c %s "./$folderpath/output_fd.bin") -b ./$folderpath/output_fd.bin /tmp/output_fd_cmp.bin ; then
