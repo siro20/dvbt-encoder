@@ -26,7 +26,32 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+#include "ed_rs_oi.hpp"
+#include "si_sm.hpp"
+
+#include "ed.hpp"
+#include "rs.hpp"
+#include "ce.hpp"
+#include "ii.hpp"
+#include "sm.hpp"
+#include "si.hpp"
+#include "ifft.hpp"
+#include "oi.hpp"
+#include "chan.hpp"
+#include "quant.hpp"
+
+static void _proc_ed_rs_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+{
+	DVBT_ed_rs_oi dvbted_rs_oi(fd_in,fd_out);
+
+	while(dvbted_rs_oi.encode())
+	{};
+	fclose(fd_in);
+	fclose(fd_out);
+	exit(0);
+}
+
+static void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ed dvbted(fd_in,fd_out);
 
@@ -37,7 +62,7 @@ void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_rs(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_rs(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_rs dvbtrs(fd_in,fd_out);
 
@@ -48,7 +73,7 @@ void _proc_rs(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_oi dvbtoi(fd_in,fd_out);
 
@@ -59,7 +84,7 @@ void _proc_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_ce(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_ce(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ce dvbtoi(fd_in,fd_out,dvbtsettings);
 
@@ -70,7 +95,7 @@ void _proc_ce(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_ii(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_ii(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ii dvbtii(fd_in,fd_out,dvbtsettings);
 
@@ -81,7 +106,7 @@ void _proc_ii(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	int symbol;
 	DVBT_si dvbtsi(fd_in,fd_out,dvbtsettings);
@@ -97,7 +122,18 @@ void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_si_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+{
+	DVBT_si_sm dvbtsi_sm(fd_in,fd_out,dvbtsettings);
+	while(dvbtsi_sm.encode())
+	{
+	};
+	fclose(fd_in);
+	fclose(fd_out);
+	exit(0);
+}
+
+static void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_sm dvbtsm(fd_in,fd_out,dvbtsettings);
 	while(dvbtsm.encode())
@@ -107,7 +143,7 @@ void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	unsigned int symbol;
 	unsigned int frame;
@@ -129,7 +165,7 @@ void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_ifft(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_ifft(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ifft dvbtifft(fd_in,fd_out,dvbtsettings);
 	while(dvbtifft.encode())
@@ -139,7 +175,7 @@ void _proc_ifft(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 
-void _proc_quant(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_quant(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_quant dvbtquant(fd_in,fd_out,dvbtsettings);
 	while(dvbtquant.encode())
@@ -149,13 +185,12 @@ void _proc_quant(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 }
 
 typedef void(*funcs)(FILE*,FILE*,DVBT_settings*);
-funcs FunctionPointers[] = {_proc_ed,_proc_rs,_proc_oi,_proc_ce,_proc_ii,_proc_si,_proc_sm,_proc_chan,_proc_ifft,_proc_quant};
-
+funcs FunctionPointers[] = //{_proc_ed,_proc_rs,_proc_oi,_proc_ce,_proc_ii,_proc_si,_proc_sm,_proc_chan,_proc_ifft,_proc_quant};
+{_proc_ed_rs_oi,_proc_ce,_proc_ii,_proc_si_sm,_proc_chan,_proc_ifft,_proc_quant};
 /* test function */
 DVBT_enc::DVBT_enc(FILE* fd_in, FILE* fd_out, DVBT_settings *dvbt_settings)
 {
 	int pipe_fd[2];
-	int i;
 	pid_t pid;
 	int fd;
 	
@@ -171,7 +206,7 @@ DVBT_enc::DVBT_enc(FILE* fd_in, FILE* fd_out, DVBT_settings *dvbt_settings)
 		
 	this->dvbt_settings = dvbt_settings;
 	
-	for(i=0;i<sizeof(FunctionPointers)/sizeof(funcs)-1;i++)
+	for(unsigned int i=0;i<sizeof(FunctionPointers)/sizeof(funcs)-1;i++)
 	{
 		pipe(pipe_fd);
 		
@@ -212,15 +247,13 @@ DVBT_enc::~DVBT_enc()
 
 void DVBT_enc::encode()
 {
-	bool err;
 	int ret;
 	long waittime;
 	
 	uint8_t *buf;
-	err = false;
 	buf = new uint8_t[8*188];
 	struct timeval t1,t2;
-    waittime = (long)(8*8*188*1000000/this->dvbt_settings->mpegtsbitrate);
+    waittime = (long)(8L*8L*188L*1000000L/this->dvbt_settings->mpegtsbitrate);
     
 	gettimeofday(&t1, NULL);
 	while(1){
@@ -242,6 +275,35 @@ void DVBT_enc::encode()
 		gettimeofday(&t1, NULL);
 	};
 
+	fclose(this->in);
+	fclose(this->out);
+	this->wt.join();
+	delete[] buf;
+}
+
+void DVBT_enc::benchmark()
+{
+	int ret;
+	long diff;
+	long bytecnt=0;
+	uint8_t *buf = new uint8_t[8*188];
+	struct timeval t1,t2;
+
+	gettimeofday(&t1, NULL);
+	while(1){
+		ret = fread(buf,sizeof(char),8*188,this->in);
+		if(ret <= 0)
+			break;
+		ret = fwrite(buf,sizeof(char),8*188,this->out);
+		if(ret <= 0)
+			break;
+		bytecnt+=8*188;
+	};
+	
+	gettimeofday(&t2, NULL);
+	diff = t2.tv_sec*1000000+t2.tv_usec-t1.tv_sec*1000000+t1.tv_usec;
+	cerr << "took " << diff << " usec to encode " << bytecnt << " Bytes\nthat's " << (bytecnt*1000000)/(diff*188) << " MPEGts packets/ sec" << endl;
+	
 	fclose(this->in);
 	fclose(this->out);
 	this->wt.join();
