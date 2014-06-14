@@ -62,15 +62,17 @@ int main(int argc, char *argv[])
 	int outputformat;
 	float gain;
 	int opt;
+	bool benchmark;
 	DVBT_settings *dvbtsettings;
 
 	oversampling = 1;
 	alpha = 1;
 	cellid = 0;
 	gain = 1.0f;
+	benchmark = false;
 	
 	opterr = 0;
-	while ((opt = getopt(argc, argv, "to:b:c:g:m:a:i:s:f:z:v:")) != -1)
+	while ((opt = getopt(argc, argv, "xto:b:c:g:m:a:i:s:f:z:v:")) != -1)
 	{
 		switch (opt)
 		{
@@ -107,6 +109,9 @@ int main(int argc, char *argv[])
 		case 'h':
 			print_help_msg();
 			break;
+		case 'x':
+			benchmark = true;
+			break;
 		case '?':
 			fprintf(stderr, "unknown arg %c\n", optopt);
         break;
@@ -122,6 +127,11 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	DVBT_enc dvbtenc(stdin,stdout,dvbtsettings);
+	if(benchmark)
+	{
+		dvbtenc.benchmark();
+		return 0;
+	}
 	dvbtenc.encode();
 	return 0;
 }
