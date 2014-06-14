@@ -21,18 +21,9 @@
 
 #include <iostream>
 #include <fstream>
-
-#include "ed.hpp"
-#include "rs.hpp"
-#include "ce.hpp"
-#include "ii.hpp"
-#include "sm.hpp"
-#include "si.hpp"
-#include "ifft.hpp"
-#include "oi.hpp"
-#include "chan.hpp"
+#include <thread>         // std::thread
 #include "settings.hpp"
-#include "quant.hpp"
+
 
 using namespace std;
 
@@ -41,6 +32,7 @@ class DVBT_enc
 public:
 	DVBT_enc(FILE *in, FILE *out, DVBT_settings* dvbt_settings);
 	void encode();
+	void benchmark();
 	~DVBT_enc();
 private:
 	FILE* in;
