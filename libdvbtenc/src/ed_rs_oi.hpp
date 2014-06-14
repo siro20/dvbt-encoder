@@ -16,8 +16,8 @@
 *
 */
 
-#ifndef _DVBTENC_ED_H__
-#define _DVBTENC_ED_H__
+#ifndef _DVBTENC_ED_RS_OI_H__
+#define _DVBTENC_ED_RS_OI_H__
 
 #include <iostream>
 #include <inttypes.h>
