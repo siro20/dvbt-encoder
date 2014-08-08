@@ -35,8 +35,11 @@ DVBT_ifft::DVBT_ifft(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 
 	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
 	this->tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
-	this->buf = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
-	
+	this->bufA = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
+	this->bufB = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
+	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling, (fftwf_complex*)this->bufA, 
+		(fftwf_complex*)this->bufB, FFTW_BACKWARD, FFTW_ESTIMATE);
+
 	memset(this->tmp, 0, this->dvbt_settings->ofdmmode * sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 	
 	this->fftshift_offset = (this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling - this->dvbt_settings->ofdmcarriers + 1)/2;
@@ -45,7 +48,9 @@ DVBT_ifft::DVBT_ifft(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 
 DVBT_ifft::~DVBT_ifft()
 {
-	delete[] this->buf;
+	fftwf_destroy_plan(this->p);
+	delete[] this->bufA;
+	delete[] this->bufB;
 	delete[] this->tmp;
 }
 
@@ -61,18 +66,16 @@ bool DVBT_ifft::encode()
 	if(!out)
 		return false;
 	
-	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling, (fftwf_complex*)this->buf, 
-		out+(this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling), FFTW_BACKWARD, FFTW_ESTIMATE);
-	
-	this->fftshift(in,this->buf);
+	this->fftshift(in,this->bufA);
 	fftwf_execute(this->p);
 	
+	memcpy(out+this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling, bufB, 
+		this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
+
 	//insert <guardcarriers> to the beginning of the buffer
 	memcpy(out,out+this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling,
 		this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 	
-	fftwf_destroy_plan(this->p);
-
 	this->mem->free_out((uint8_t*)out);
 	this->mem->free_in((uint8_t*)in);
 	

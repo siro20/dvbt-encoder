@@ -49,7 +49,8 @@ private:
 	DVBT_settings* dvbt_settings;
 	fftwf_plan p;
 	int fftshift_offset;
-	dvbt_complex_t *buf;
+	dvbt_complex_t *bufA;
+	dvbt_complex_t *bufB;
 	dvbt_complex_t *tmp;
 };
 
