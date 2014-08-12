@@ -3,7 +3,7 @@ ETSI EN 300 744 compliant DVBT encoder library written in c++
 
 required libraries:
 
-* libfftwf
+* libfftw3f
 
 Supported Modes:
 ---------------
@@ -32,7 +32,6 @@ Tested Modes:
 
 TODO:
 ---------------
-fix thread signals
 
 Encoding speed:
 ---------------
