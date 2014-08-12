@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 	print_samplerate = false;
 	
 	opterr = 0;
-	while ((opt = getopt(argc, argv, "to:b:c:g:m:a:i:s:f:v:zp")) != -1)
+	while ((opt = getopt(argc, argv, "to:b:c:g:m:a:i:s:f:v:zp?h")) != -1)
 	{
 		switch (opt)
 		{
@@ -131,6 +131,8 @@ int main(int argc, char *argv[])
 		case 'z':
 			print_samplerate = true;
 		break;
+		default:
+			print_help_msg();
 		}
 	}
 
