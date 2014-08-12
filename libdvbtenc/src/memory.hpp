@@ -31,6 +31,55 @@
 
 using namespace std;
 
+#define DVBTENC_BUFFERS 6
+#define DVBTENC_APROX_BUF_SIZE 1024 * 4
+
+class DVBT_threadsafe_queue
+{
+private:
+	std::queue<uint8_t *> mQueue;
+	mutex mMutex;
+	condition_variable cWaitEmpty;
+	condition_variable cWaitFull;
+
+public:
+	void push(uint8_t *data)
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		while(mQueue.size() == DVBTENC_BUFFERS)
+		{
+			cWaitFull.wait(lock);
+		}
+		mQueue.push(data);
+		if(mQueue.size() == 1)
+			cWaitEmpty.notify_one();
+	}
+
+	bool empty()
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		return mQueue.empty();
+	}
+
+	uint8_t *front()
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		while(mQueue.empty())
+		{
+			cWaitEmpty.wait(lock);
+		}
+		return mQueue.front();
+	}
+
+	void pop()
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mQueue.pop();
+		if(mQueue.size() == DVBTENC_BUFFERS - 1)
+			cWaitFull.notify_one();
+	}
+};
+
 class DVBT_memory
 {
 public:
@@ -40,10 +89,10 @@ public:
 	int out_size;
 	int in_multiple_of;
 	int out_multiple_of;
-	void free_out(uint8_t *ptr);
+	uint8_t * get_in();
 	uint8_t* get_out();
 	void free_in(uint8_t *ptr);
-	uint8_t* get_in();
+	void free_out(uint8_t* ptr);
 
 private:
 	bool write(uint8_t *ptr);
@@ -54,21 +103,8 @@ private:
 	thread wt;
 	FILE *fd_in;
 	FILE *fd_out;
-	queue<uint8_t *> in_data;
-	queue<uint8_t *> in_free;
-	queue<uint8_t *> out_data;
-	queue<uint8_t *> out_free;
-	mutex in_mutex;
-	mutex out_mutex;
-	mutex in_signal_mutex;
-	mutex out_signal_mutex;
-	condition_variable in_wait_empty;
-	condition_variable out_wait_empty;
-	bool readerr;
-	bool writeerr;
+	DVBT_threadsafe_queue inQueue;
+	DVBT_threadsafe_queue outQueue;
 };
-
-#define DVBTENC_APROX_BUF_SIZE 1024
-#define DVBTENC_BUFFERS 5
 
 #endif
