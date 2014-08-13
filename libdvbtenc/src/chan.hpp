@@ -36,7 +36,7 @@ class DVBT_chan
 public:
 	DVBT_chan(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
 	~DVBT_chan();
-	bool encode(unsigned int frame, unsigned int symbol);
+	bool encode(int frame, int symbol);
 private:
 	FILE *fd_in;
 	FILE *fd_out;
@@ -44,7 +44,7 @@ private:
 	int out_multiple_of;
 	DVBT_memory *mem;
 	DVBT_settings* dvbt_settings;
-	DVBT_pilots *lookup[4][68];
+	DVBT_pilots *dvbt_pilots[4][68];
 	
 };
 

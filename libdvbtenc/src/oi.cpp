@@ -49,7 +49,6 @@ bool DVBT_oi::encode()
 /* data written to data_out is same as data_cnt */
 {
 	int i,k;
-	unsigned char *p_oi_buf;
 	uint8_t *in;
 	uint8_t *out;
 	

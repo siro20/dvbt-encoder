@@ -78,7 +78,7 @@ DVBT_ed::~DVBT_ed()
 //encodes length packets, assuming that the MPEG TS sync byte is at offset 0
 bool DVBT_ed::encode()
 {
-	int i;
+	unsigned int i;
 	uint8_t *in;
 	uint8_t *out;
 	

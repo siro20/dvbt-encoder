@@ -42,7 +42,7 @@ DVBT_chan::DVBT_chan(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
     {
 		for(i=0;i<this->dvbt_settings->DVBT_SYMBOLS_FRAME;i++)
 		{
-			this->lookup[frame][i] = new DVBT_pilots(frame,i,&dvbt_tps,dvbt_settings);
+			this->dvbt_pilots[frame][i] = new DVBT_pilots(frame,i,&dvbt_tps,dvbt_settings);
 		}
 	}
 }
@@ -52,7 +52,7 @@ DVBT_chan::~DVBT_chan()
 {
 }
 
-bool DVBT_chan::encode(unsigned int frame, unsigned int symbol)
+bool DVBT_chan::encode(int frame, int symbol)
 {
 	dvbt_complex_t *out;
 	dvbt_complex_t *in;
@@ -69,7 +69,7 @@ bool DVBT_chan::encode(unsigned int frame, unsigned int symbol)
 	if(!out)
 		return false;
 
-	this->lookup[frame][symbol]->encode(in,out);
+	this->dvbt_pilots[frame][symbol]->encode(in,out);
 
 	this->mem->free_out((uint8_t*)out);
 	this->mem->free_in((uint8_t*)in);

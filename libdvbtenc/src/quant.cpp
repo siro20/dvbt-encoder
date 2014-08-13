@@ -52,7 +52,7 @@ DVBT_quant::~DVBT_quant()
 
 bool DVBT_quant::encode()
 {
-	int i;
+	unsigned int i;
 	dvbt_complex_t* in;
 	uint8_t *out;
 	

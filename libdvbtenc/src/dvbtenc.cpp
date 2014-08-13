@@ -50,7 +50,7 @@ static void _proc_ed_rs_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings
 	fclose(fd_out);
 	exit(0);
 }
-
+/*
 static void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ed dvbted(fd_in,fd_out);
@@ -83,7 +83,7 @@ static void _proc_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	fclose(fd_out);
 	exit(0);
 }
-
+*/
 static void _proc_ce(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_ce dvbtoi(fd_in,fd_out,dvbtsettings);
@@ -105,7 +105,7 @@ static void _proc_ii(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	fclose(fd_out);
 	exit(0);
 }
-
+/*
 static void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	int symbol;
@@ -120,7 +120,7 @@ static void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	fclose(fd_in);
 	fclose(fd_out);
 	exit(0);
-}
+}*/
 
 static void _proc_si_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
@@ -132,7 +132,7 @@ static void _proc_si_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	fclose(fd_out);
 	exit(0);
 }
-
+/*
 static void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
 	DVBT_sm dvbtsm(fd_in,fd_out,dvbtsettings);
@@ -141,7 +141,7 @@ static void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	fclose(fd_in);
 	fclose(fd_out);
 	exit(0);
-}
+}*/
 
 static void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 {
