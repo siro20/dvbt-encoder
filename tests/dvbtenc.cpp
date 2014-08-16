@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "dvbtenc.hpp"
 #include "settings.hpp"
@@ -43,6 +44,9 @@ void print_help_msg()
 	"		4 FLOAT\n"
 	"f		gain\n"
 	"h		help message\n"
+	"p		print mpegts bitrate\n"
+	"z		print samplerate\n"
+	"x		benchmark\n"
 	);
 	exit(0);
 }
@@ -64,15 +68,26 @@ int main(int argc, char *argv[])
 	int opt;
 	bool benchmark;
 	DVBT_settings *dvbtsettings;
-
+	bool print_mpegtsbitrate;
+	bool print_samplerate;
+	
+	ofdmmode = 2048;
+	bandwidth = 8;
+	coderate = 3;
+	guardinterval = 4;
+	modulation = 4;
 	oversampling = 1;
 	alpha = 1;
 	cellid = 0;
 	gain = 1.0f;
+	outputformat = 4;
 	benchmark = false;
+
+	print_mpegtsbitrate = false;
+	print_samplerate = false;
 	
 	opterr = 0;
-	while ((opt = getopt(argc, argv, "xto:b:c:g:m:a:i:s:f:z:v:")) != -1)
+	while ((opt = getopt(argc, argv, "xto:b:c:g:m:a:i:s:f:v:zp?h")) != -1)
 	{
 		switch (opt)
 		{
@@ -109,12 +124,21 @@ int main(int argc, char *argv[])
 		case 'h':
 			print_help_msg();
 			break;
+		case '?':
+			fprintf(stderr, "unknown arg %c\n", optopt);
+			return 1;
+			break;
+		case 'p':
+			print_mpegtsbitrate = true;
+			break;
+		case 'z':
+			print_samplerate = true;
+			break;
 		case 'x':
 			benchmark = true;
 			break;
-		case '?':
-			fprintf(stderr, "unknown arg %c\n", optopt);
-        break;
+		default:
+			print_help_msg();
 		}
 	}
 
@@ -126,13 +150,20 @@ int main(int argc, char *argv[])
 		fprintf(stderr,"failed to init DVBT_Settings\n");
 		return 1;
 	}
-	DVBT_enc dvbtenc(stdin,stdout,dvbtsettings);
-	if(benchmark)
-	{
-		dvbtenc.benchmark();
+	if(print_mpegtsbitrate){
+		cout << (unsigned long)(dvbtsettings->mpegtsbitrate) << endl;
 		return 0;
 	}
-	dvbtenc.encode();
+	else if(print_samplerate){
+		cout << (unsigned long)(dvbtsettings->symbolrate*dvbtsettings->oversampling) << endl;
+		return 0;
+	}
+
+	DVBT_enc dvbtenc(stdin,stdout,dvbtsettings);
+	if(benchmark)
+		dvbtenc.benchmark();
+	else
+		dvbtenc.encode();
 	return 0;
 }
 
