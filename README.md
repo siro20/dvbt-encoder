@@ -1,5 +1,4 @@
-ETSI EN 300 744 compliant DVBT encoder library written in c++
-except for hierachical transmission
+ETSI EN 300 744 compliant DVBT encoder library written in c++ (except for hierachical transmission) 
 ==============
 
 required libraries:
