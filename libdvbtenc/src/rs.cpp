@@ -93,7 +93,7 @@ void DVBT_rs::gen_poly()
    //cout << endl;
  }
 
-DVBT_rs::DVBT_rs(FILE *fd_in, FILE *fd_out)
+DVBT_rs::DVBT_rs(DVBT_pipe *pin, DVBT_pipe *pout)
 {
 	// primitive polynomial p(x) = x8 + x4 + x3 + x2 + 1
 	this->pp[0] = 1;
@@ -108,16 +108,12 @@ DVBT_rs::DVBT_rs(FILE *fd_in, FILE *fd_out)
 
 	generate_gf();
 	gen_poly();
-	this->in_multiple_of = 188;
-	this->out_multiple_of = 204;
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
-
-	this->fd_in = fd_in;
-	this->fd_out = fd_out;
+	this->mReadSize = 188;
+	this->mWriteSize = 204;
+	this->pin = pin;
+	this->pout = pout;
+	
+	this->pin->initReadEnd( this->mReadSize );
 }
 
 DVBT_rs::~DVBT_rs()
@@ -170,76 +166,82 @@ bool DVBT_rs::encode( )
 	int i,n;
 	unsigned int wreg[4];
 	unsigned char shadow;
-	uint8_t *in;
-	uint8_t *out;
 	uint8_t *datain;
 	uint8_t *dataout;
-	in = this->mem->get_in();
-	if(!in)
+	DVBT_memory *in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
+	if( !in || !in->size || !out || !out->ptr )
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
 		return false;
-	out = this->mem->get_out();
-	if(!out)
-		return false;
-	n = this->mem->in_size;
-	datain = in;
-	dataout = out;
-    do{
+	}
+	n = in->size;
+	datain = in->ptr;
+	dataout = out->ptr;
+	do{
 		// clear register on each loop
 		memset( wreg, 0 , sizeof(int) * 4 );
 		shadow = 0;
-        for( i=0; i<188; i++ )
-        {
-            /* shift in new byte */
-            wreg[3] |= (datain[i]&0xff)<<24;
-            dataout[i] = datain[i];
+		for( i=0; i<188; i++ )
+		{
+			/* shift in new byte */
+			wreg[3] |= (datain[i]&0xff)<<24;
+			dataout[i] = datain[i];
 
-            /* do a galois multiplication on wreg */
-            galois_mult( wreg, shadow );
+			/* do a galois multiplication on wreg */
+			galois_mult( wreg, shadow );
 
-            /* make a backup of the last byte */
-            shadow = wreg[0]&0xff;
+			/* make a backup of the last byte */
+			shadow = wreg[0]&0xff;
 
-            /* shift the register */
-            wreg[0] >>= 8;
-            wreg[0] |= (wreg[1]&0xff)<<24;
-            wreg[1] >>= 8;
-            wreg[1] |= (wreg[2]&0xff)<<24;
-            wreg[2] >>= 8;
-            wreg[2] |= (wreg[3]&0xff)<<24;
-            wreg[3] >>= 8;
-        }
-        for( i=0; i<15; i++ )
-        {
-            /* shift in zeros: wreg[3] |= (0&0xff)<<24; , is already zero ! */
+			/* shift the register */
+			wreg[0] >>= 8;
+			wreg[0] |= (wreg[1]&0xff)<<24;
+			wreg[1] >>= 8;
+			wreg[1] |= (wreg[2]&0xff)<<24;
+			wreg[2] >>= 8;
+			wreg[2] |= (wreg[3]&0xff)<<24;
+			wreg[3] >>= 8;
+		}
+		for( i=0; i<15; i++ )
+		{
+			/* shift in zeros: wreg[3] |= (0&0xff)<<24; , is already zero ! */
 
-            /* do a galois multiplication on wreg */
-            galois_mult( wreg, shadow );
-            /* make a backup of the last byte */
-            shadow = wreg[0]&0xff;
+			/* do a galois multiplication on wreg */
+			galois_mult( wreg, shadow );
+			/* make a backup of the last byte */
+			shadow = wreg[0]&0xff;
 
-            /* shift the register */
-            wreg[0] >>= 8;
-            wreg[0] |= (wreg[1]&0xff)<<24;
-            wreg[1] >>= 8;
-            wreg[1] |= (wreg[2]&0xff)<<24;
-            wreg[2] >>= 8;
-            wreg[2] |= (wreg[3]&0xff)<<24;
-            wreg[3] >>= 8;
-        }
+			/* shift the register */
+			wreg[0] >>= 8;
+			wreg[0] |= (wreg[1]&0xff)<<24;
+			wreg[1] >>= 8;
+			wreg[1] |= (wreg[2]&0xff)<<24;
+			wreg[2] >>= 8;
+			wreg[2] |= (wreg[3]&0xff)<<24;
+			wreg[3] >>= 8;
+		}
 
-        /* do a galois multiplication on wreg */
-        galois_mult( wreg, shadow );
+		/* do a galois multiplication on wreg */
+		galois_mult( wreg, shadow );
 
-        /* copy the result */
-        memcpy(&dataout[188], wreg, sizeof(int) * 4);
-        
-        datain+=188;
-        dataout+=204;
-        n-=188;
-    }while(n > 0);
-    
-	this->mem->free_out(out);
-	this->mem->free_in(in);
-	
+		/* copy the result */
+		memcpy(&dataout[188], wreg, sizeof(int) * 4);
+		
+		datain+=188;
+		dataout+=204;
+		n-=188;
+	}while(n > 0);
+
+	delete in;
+
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
+
 	return true;
 }

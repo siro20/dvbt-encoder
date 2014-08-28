@@ -33,22 +33,17 @@
 #include "rs.hpp"
 #include "ce.hpp"
 #include "ii.hpp"
-#include "sm.hpp"
-#include "si.hpp"
 #include "ifft.hpp"
 #include "oi.hpp"
 #include "chan.hpp"
 #include "quant.hpp"
 
-static void _proc_ed_rs_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_ed_rs_oi(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
 {
-	DVBT_ed_rs_oi dvbted_rs_oi(fd_in,fd_out);
+	DVBT_ed_rs_oi dvbted_rs_oi(pin,pout);
 
 	while(dvbted_rs_oi.encode())
 	{};
-	fclose(fd_in);
-	fclose(fd_out);
-	exit(0);
 }
 /*
 static void _proc_ed(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
@@ -84,26 +79,20 @@ static void _proc_oi(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }
 */
-static void _proc_ce(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_ce(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
 {
-	DVBT_ce dvbtoi(fd_in,fd_out,dvbtsettings);
+	DVBT_ce dvbtoi(pin,pout,dvbtsettings);
 
 	while(dvbtoi.encode())
 	{};
-	fclose(fd_in);
-	fclose(fd_out);
-	exit(0);
 }
 
-static void _proc_ii(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_ii(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
 {
-	DVBT_ii dvbtii(fd_in,fd_out,dvbtsettings);
+	DVBT_ii dvbtii(pin,pout,dvbtsettings);
 
 	while(dvbtii.encode())
 	{};
-	fclose(fd_in);
-	fclose(fd_out);
-	exit(0);
 }
 /*
 static void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
@@ -122,15 +111,12 @@ static void _proc_si(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }*/
 
-static void _proc_si_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_si_sm(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
 {
-	DVBT_si_sm dvbtsi_sm(fd_in,fd_out,dvbtsettings);
+	DVBT_si_sm dvbtsi_sm(pin,pout,dvbtsettings);
 	while(dvbtsi_sm.encode())
 	{
 	};
-	fclose(fd_in);
-	fclose(fd_out);
-	exit(0);
 }
 /*
 static void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
@@ -143,13 +129,13 @@ static void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	exit(0);
 }*/
 
-static void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_chan(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
 {
 	unsigned int symbol;
 	unsigned int frame;
 	symbol = 0;
 	frame = 0;
-	DVBT_chan dvbtchan(fd_in,fd_out,dvbtsettings);
+	DVBT_chan dvbtchan(pin,pout,dvbtsettings);
 	while(dvbtchan.encode(frame, symbol))
 	{
 		symbol++;
@@ -160,95 +146,65 @@ static void _proc_chan(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 			frame %= 4;
 		}
 	};
-	fclose(fd_in);
-	fclose(fd_out);
-	exit(0);
 }
 
-static void _proc_ifft(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_ifft(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
 {
-	DVBT_ifft dvbtifft(fd_in,fd_out,dvbtsettings);
+	DVBT_ifft dvbtifft(pin,pout,dvbtsettings);
 	while(dvbtifft.encode())
 	{};
-	fclose(fd_in);
-	fclose(fd_out);
-	exit(0);
 }
 
-static void _proc_quant(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
+static void _proc_quant(DVBT_pipe* pin, DVBT_pipe* pout, DVBT_settings *dvbtsettings)
 {
-	DVBT_quant dvbtquant(fd_in,fd_out,dvbtsettings);
+	DVBT_quant dvbtquant(pin,pout,dvbtsettings);
 	while(dvbtquant.encode())
 	{};
-	fclose(fd_in);
-	fclose(fd_out);
 }
 
-typedef void(*funcs)(FILE*,FILE*,DVBT_settings*);
+typedef void(*funcs)(DVBT_pipe*,DVBT_pipe*,DVBT_settings*);
 funcs FunctionPointers[] = //{_proc_ed,_proc_rs,_proc_oi,_proc_ce,_proc_ii,_proc_si,_proc_sm,_proc_chan,_proc_ifft,_proc_quant};
 {_proc_ed_rs_oi,_proc_ce,_proc_ii,_proc_si_sm,_proc_chan,_proc_ifft,_proc_quant};
+
 /* test function */
-DVBT_enc::DVBT_enc(FILE* fd_in, FILE* fd_out, DVBT_settings *dvbt_settings)
+DVBT_enc::DVBT_enc(DVBT_pipe* pin, DVBT_pipe* pout, DVBT_settings *dvbt_settings)
 {
-	int pipe_fd[2];
-	pid_t pid;
-	int fd;
-	
-	this->in = fd_in;
-	pipe(pipe_fd);
-	this->out = fdopen(pipe_fd[1], "w");
-	fd = pipe_fd[0];
-	
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-		
+	DVBT_pipe* lastp = pin;
+	this->pout = pout;
 	this->dvbt_settings = dvbt_settings;
 	
 	for(unsigned int i=0;i<sizeof(FunctionPointers)/sizeof(funcs)-1;i++)
 	{
-		pipe(pipe_fd);
-		
-		pid = fork();
-		if(!pid) // child
-		{
-			FILE *c_out,*c_in;
-			close(pipe_fd[0]); // close the read end
-			fclose(this->out); // close parent fd's
-			fclose(this->in);
-
-			c_out = fdopen(pipe_fd[1], "w"); //always write to pipe_fd[1]
-			//fprintf(stderr,"errno %d\n",errno);
-			if(!c_out)
-				throw std::runtime_error(__FILE__" C failed to open write end for child!\n");
-			c_in = fdopen(fd, "r");
-			if(!c_in)
-				throw std::runtime_error(__FILE__" C failed to open read end for child!\n");
-
-			FunctionPointers[i](c_in, c_out,this->dvbt_settings);
-			return;
-		}
-		else if(pid > 0) //parent
-		{
-			close(pipe_fd[1]);
-			fd = pipe_fd[0];
-		}
-		else
-			break;
+		DVBT_pipe *p = new DVBT_pipe();
+		std::thread *wt = new std::thread(FunctionPointers[i], lastp, p, dvbt_settings);
+		this->threads.push(wt);
+		this->pipes.push(p);
+		lastp = p;
 	}
-	this->wt = thread(FunctionPointers[sizeof(FunctionPointers)/sizeof(funcs)-1], fdopen(fd, "r"), fd_out, this->dvbt_settings);
+	this->pin = lastp;
 }
 
 DVBT_enc::~DVBT_enc()
 {
-	
+	while(this->threads.size())
+	{
+		this->threads.front()->join();
+		this->threads.pop();
+	}
+	while(this->pipes.size())
+	{
+		delete this->pipes.front();
+		this->pipes.pop();
+	}
 }
 
 void DVBT_enc::encode()
 {
-	int ret;
-	long waittime;
+	FunctionPointers[sizeof(FunctionPointers)/sizeof(funcs)-1](this->pin,this->pout,this->dvbt_settings);
+}
+
+/* 
+ *  long waittime;
 	
 	uint8_t *buf;
 	buf = new uint8_t[8*188];
@@ -279,10 +235,11 @@ void DVBT_enc::encode()
 	fclose(this->out);
 	this->wt.join();
 	delete[] buf;
-}
-
+	*/
+	
 void DVBT_enc::benchmark()
 {
+	/*
 	int ret;
 	long diff;
 	long bytecnt=0;
@@ -308,4 +265,5 @@ void DVBT_enc::benchmark()
 	fclose(this->out);
 	this->wt.join();
 	delete[] buf;
+	* */
 }

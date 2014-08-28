@@ -20,23 +20,19 @@
 
 using namespace std;
 
-DVBT_ii::DVBT_ii(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
+DVBT_ii::DVBT_ii(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
 {
-	this->fd_in = fd_in;
-	this->fd_out = fd_out;
 	this->dvbt_settings = dvbt_settings;
 
-	this->in_multiple_of = this->dvbt_settings->modulation * this->dvbt_settings->DVBT_II_DEPTH;
-	this->out_multiple_of = this->dvbt_settings->DVBT_II_DEPTH;
+	this->mReadSize = this->dvbt_settings->modulation * this->dvbt_settings->DVBT_II_DEPTH;
+	this->mWriteSize = this->dvbt_settings->DVBT_II_DEPTH;
+	this->pin = pin;
+	this->pout = pout;
 
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-		
-	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
+	pin->initReadEnd( this->mReadSize );
+
 	this->lookup = new int[this->dvbt_settings->modulation * this->dvbt_settings->DVBT_II_DEPTH];
-	
+
 	static const uint8_t shiftreg_indx[6] = {0,63,105,42,21,84};
 	
 	if(this->dvbt_settings->modulation==2)
@@ -81,63 +77,60 @@ DVBT_ii::~DVBT_ii()
 
 bool DVBT_ii::encode()
 {
-	uint8_t *out;
-	uint8_t *in;
-	uint8_t *outptr;
-	uint8_t *inptr;
-	
-	in = this->mem->get_in();
-	if(!in)
-		return false;
-	out = this->mem->get_out();
-	if(!out)
-		return false;
-	outptr = out;
-	inptr = in;
-	for(int n=0;n<this->mem->in_size;n+=this->dvbt_settings->DVBT_II_DEPTH*this->dvbt_settings->modulation)
+	DVBT_memory *in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
+	if( !in || !in->size || !out || !out->ptr )
 	{
-		if(this->dvbt_settings->modulation==2)
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
+
+	if(this->dvbt_settings->modulation==2)
+	{
+		int idx=0;
+		for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
 		{
-			int idx=0;
-			for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
-			{
-				outptr[i] = (inptr[this->lookup[idx+0]] ? 0x02 : 0)
-					| (inptr[this->lookup[idx+1]] ? 0x01 : 0);
-				idx+=2;
-			}
+			out->ptr[i] = (in->ptr[this->lookup[idx+0]] ? 0x02 : 0)
+				| (in->ptr[this->lookup[idx+1]] ? 0x01 : 0);
+			idx+=2;
 		}
-		else if(this->dvbt_settings->modulation==4)
+	}
+	else if(this->dvbt_settings->modulation==4)
+	{
+		int idx=0;
+		for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
 		{
-			int idx=0;
-			for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
-			{
-				outptr[i] = (inptr[this->lookup[idx+0]] ? 0x08 : 0)
-					| (inptr[this->lookup[idx+1]] ? 0x04 : 0)
-					| (inptr[this->lookup[idx+2]] ? 0x02 : 0)
-					| (inptr[this->lookup[idx+3]] ? 0x01 : 0);
-				idx+=4;
-			}
+			out->ptr[i] = (in->ptr[this->lookup[idx+0]] ? 0x08 : 0)
+				| (in->ptr[this->lookup[idx+1]] ? 0x04 : 0)
+				| (in->ptr[this->lookup[idx+2]] ? 0x02 : 0)
+				| (in->ptr[this->lookup[idx+3]] ? 0x01 : 0);
+			idx+=4;
 		}
-		else
+	}
+	else
+	{
+		int idx=0;
+		for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
 		{
-			int idx=0;
-			for(int i=0;i<this->dvbt_settings->DVBT_II_DEPTH;i++)
-			{
-				outptr[i] = (inptr[this->lookup[idx+0]] ? 0x20 : 0)
-					| (inptr[this->lookup[idx+1]] ? 0x10 : 0)
-					| (inptr[this->lookup[idx+2]] ? 0x08 : 0)
-					| (inptr[this->lookup[idx+3]] ? 0x04 : 0)
-					| (inptr[this->lookup[idx+4]] ? 0x02 : 0)
-					| (inptr[this->lookup[idx+5]] ? 0x01 : 0);
-				idx+=6;
-			}
+			out->ptr[i] = (in->ptr[this->lookup[idx+0]] ? 0x20 : 0)
+				| (in->ptr[this->lookup[idx+1]] ? 0x10 : 0)
+				| (in->ptr[this->lookup[idx+2]] ? 0x08 : 0)
+				| (in->ptr[this->lookup[idx+3]] ? 0x04 : 0)
+				| (in->ptr[this->lookup[idx+4]] ? 0x02 : 0)
+				| (in->ptr[this->lookup[idx+5]] ? 0x01 : 0);
+			idx+=6;
 		}
-		outptr += this->dvbt_settings->DVBT_II_DEPTH;
-		inptr += this->dvbt_settings->DVBT_II_DEPTH*this->dvbt_settings->modulation;
-	};
-	
-	this->mem->free_out(out);
-	this->mem->free_in(in);
+	}
+
+	delete in;
+
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
 
 	return true;
 }

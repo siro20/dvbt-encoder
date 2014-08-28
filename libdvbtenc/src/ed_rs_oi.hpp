@@ -33,18 +33,18 @@ using namespace std;
 class DVBT_ed_rs_oi
 {
 public:
-	DVBT_ed_rs_oi(FILE *fd_in, FILE *fd_out);
+	DVBT_ed_rs_oi(DVBT_pipe *pin, DVBT_pipe *pout);
 	~DVBT_ed_rs_oi();
 	bool encode();
 protected:
 	uint8_t * ed_pbrs_seq;
 	unsigned int edcnt;
 	unsigned int oicnt;
-	queue<uint8_t> oi_queues[OI_SIZE];
-
-	int in_multiple_of;
-	int out_multiple_of;
-	DVBT_memory *mem;
+	std::queue<uint8_t> oi_queues[OI_SIZE];
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
+	unsigned int mReadSize;
+	unsigned int mWriteSize;
 };
 
 #endif

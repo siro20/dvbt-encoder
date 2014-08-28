@@ -22,6 +22,7 @@
 #include <iostream>
 #include <fstream>
 #include <thread>         // std::thread
+#include "memory.hpp"
 #include "settings.hpp"
 
 
@@ -30,14 +31,18 @@ using namespace std;
 class DVBT_enc
 {
 public:
-	DVBT_enc(FILE *in, FILE *out, DVBT_settings* dvbt_settings);
+	DVBT_enc(DVBT_pipe* pin, DVBT_pipe* pout, DVBT_settings* dvbt_settings);
 	void encode();
 	void benchmark();
 	~DVBT_enc();
 private:
-	FILE* in;
-	FILE* out;
-	thread wt;
+	unsigned int mReadSize;
+	unsigned int mWriteSize;
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
+	std::queue<std::thread*> threads;
+	std::queue<DVBT_pipe *> pipes;
+	DVBT_pipe *last;
 	DVBT_settings* dvbt_settings;
 };
 

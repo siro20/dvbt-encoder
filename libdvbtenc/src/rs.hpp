@@ -53,23 +53,20 @@ using namespace std;
 class DVBT_rs
 {
 public:
-    DVBT_rs(FILE *fd_in, FILE *fd_out);
+    DVBT_rs(DVBT_pipe *pin, DVBT_pipe *pout);
     ~DVBT_rs();
     bool encode();
 private:
     void galois_mult( uint32_t *wreg, uint8_t shadow );
     void gen_poly();
 	void generate_gf();
-	
-protected:
-	int in_multiple_of;
-	int out_multiple_of;
-	DVBT_memory *mem;
+	unsigned int mReadSize;
+	unsigned int mWriteSize;
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
 	int pp [mm+1]; // primitive polynomial p(x) = x8 + x4 + x3 + x2 + 1
 	int alpha_to [nn+1], index_of [nn+1], gg [nn-kk+1] ;
 	int recd [nn], data [kk], bb [nn-kk] ;
-	FILE *fd_in;
-	FILE *fd_out;
 };
 
 #endif

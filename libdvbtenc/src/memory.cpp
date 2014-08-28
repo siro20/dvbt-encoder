@@ -23,151 +23,227 @@
 using namespace std;
 
 static bool debug = false;
-//might block
-uint8_t* DVBT_memory::get_in()
+
+DVBT_memory::DVBT_memory(int Size)
 {
-	uint8_t *ptr = this->inQueue.front();
-	this->inQueue.pop();
-	
-	if(ptr==NULL)
-	{
-		//notify write thread
-		this->outQueue.push(NULL);
-		this->rt.join();
-		this->wt.join();
-	}
-
-	return ptr;
-}
-
-//might block
-void DVBT_memory::free_out(uint8_t* ptr)
-{
-	this->outQueue.push(ptr);
-}
-
-uint8_t* DVBT_memory::get_out()
-{
-	return new uint8_t[this->out_size];
-}
-
-void DVBT_memory::free_in(uint8_t *ptr)
-{
-	if(ptr)
-		delete[] ptr;
-}
-
-bool DVBT_memory::write(uint8_t *ptr)
-{
-	int ret,offset;
-	bool err;
-	offset = 0;
-	err = false;
-	ret = 0;
-
-	while(offset < this->out_size)
-	{
-		ret = fwrite(ptr+offset, sizeof(char), this->out_size-offset, this->fd_out);
-		if(ret <= 0){
-			err = true;
-			break;
-		}
-		offset += ret;
-	}
-	//write failed ? just exit
-	if(offset < this->out_size){
-		err = true;
-	}
-	return err;
-}
-
-bool DVBT_memory::read(uint8_t *ptr)
-{
-	int ret,offset;
-	bool err;
-	offset = 0;
-	err = false;
-	ret = 0;
-	while(offset < this->in_size)
-	{
-		ret = fread(ptr+offset, sizeof(char), this->in_size-offset, this->fd_in);
-		if(ret <= 0){
-			err = true;
-			break;
-		}
-		offset += ret;
-	}
-	
-	if(offset < this->in_size){
-		memset(ptr+offset, 0, this->in_size-offset);
-		err = true;
-	}
-	return err;
-}
-
-void DVBT_memory::read_thread()
-{
-	uint8_t *ptr;
-	bool err;
-	do{
-		ptr = new uint8_t[this->in_size];
-		err = this->read(ptr);
-		
-		this->inQueue.push(ptr);
-		if(err)
-		{
-			this->inQueue.push(NULL);
-		}
-
-		if(debug) std::cerr << "read_thread notify" << endl;
-	}
-	while(!err);
-
-	if(debug) std::cerr << "read_thread terminated" << endl;
-}
-
-void DVBT_memory::write_thread()
-{
-	uint8_t *ptr;
-	bool err;
-	do{
-		ptr = this->outQueue.front();
-		this->outQueue.pop();
-
-		if(ptr == NULL)
-			break;
-		
-		err = this->write(ptr);
-		delete[] ptr;
-	}
-	while(!err);
-
-	if(debug) std::cerr << "write_thread terminated" << endl;
-}
-
-DVBT_memory::DVBT_memory( FILE *fd_i, FILE *fd_o, int in_multiple_of, int out_multiple_of, bool fixed )
-{
-	int i;
-	if(fixed)
-	{
-		i = 1;
-	}
-	else
-	{
-		i = DVBTENC_APROX_BUF_SIZE / in_multiple_of;
-		if(!i) i=1;
-	}
-	this->fd_in = fd_i;
-	this->fd_out = fd_o;
-	this->in_size = i * in_multiple_of;
-	this->out_size = i * out_multiple_of;
-	this->in_multiple_of = in_multiple_of;
-	this->out_multiple_of = out_multiple_of;
-
-	this->rt = thread(&DVBT_memory::read_thread, this);
-	this->wt = thread(&DVBT_memory::write_thread, this);
+	size = Size;
+	ptr = 0;
+	if(Size)
+		ptr = new uint8_t[Size];
 }
 
 DVBT_memory::~DVBT_memory()
 {
+	if(size)
+		delete[] ptr;
+}
+/*
+DVBT_threadsafe_queue::DVBT_threadsafe_queue(int maximumSize)
+{
+	mMaximumSize = maximumSize;
+}
+
+void DVBT_threadsafe_queue::push(DVBT_memory *data)
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	while(mQueue.size() == mMaximumSize)
+	{
+		cWaitFull.wait(lock);
+	}
+	mQueue.push(data);
+	if(mQueue.size() == 1)
+		cWaitEmpty.notify_one();
+}
+
+bool DVBT_threadsafe_queue::empty()
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	return mQueue.empty();
+}
+
+DVBT_memory *DVBT_threadsafe_queue::front()
+{
+	std::unique_lock<std::mutex> lock(mMutex);
+	while(mQueue.empty())
+	{
+		cWaitEmpty.wait(lock);
+	}
+	return mQueue.front();
+}
+
+void DVBT_threadsafe_queue::pop()
+{
+	int mSize = front()->size;
+	std::unique_lock<std::mutex> lock(mMutex);
+	mQueue.pop();
+	if(mQueue.size() == mMaximumSize - 1)
+		cWaitFull.notify_one();
+}
+*/
+void DVBT_pipe::initReadEnd( unsigned int bufferSize )
+{
+	std::unique_lock<std::mutex> lock(this->mMutex);                  
+	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::initReadEnd( " << bufferSize << " )" << endl;
+
+	this->mReadEndSize = bufferSize;
+	this->cWaitInit.notify_one();
+}
+
+bool DVBT_pipe::write(DVBT_memory *memin)
+{
+	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::write( " << memin->size << " )" << endl;
+	
+	if(this->mReadEndSize == 0)
+	{
+		std::unique_lock<std::mutex> lock(this->mMutex);
+		while(this->mReadEndSize == 0)
+		{
+			this->cWaitInit.wait(lock);
+		}
+	}
+	if(this->mReadEndClose)
+		return false;
+	
+	// special case
+	if( memin->size == this->mReadEndSize )
+	{
+		std::unique_lock<std::mutex> lock(this->mMutex);
+		while(this->mQueueOut.size() == this->mQueueMaxSize)
+		{
+			this->cWaitFull.wait(lock);
+		}
+		this->mQueueOut.push( memin );
+		if(this->mQueueOut.size() == 1)
+			this->cWaitEmpty.notify_one();
+		return true;
+	}
+	
+	unsigned int offset_in = 0;
+	while( offset_in < memin->size )
+	{
+		if(!this->memout)
+			this->memout = new DVBT_memory( this->mReadEndSize );
+
+		int copybytes = min(memin->size - offset_in, this->mReadEndSize - this->mOffsetOut);
+
+		memcpy(this->memout->ptr + this->mOffsetOut, memin->ptr + offset_in, copybytes);
+		
+		offset_in += copybytes;
+		this->mOffsetOut += copybytes;
+		
+		if( this->mOffsetOut == this->mReadEndSize )
+		{
+			std::unique_lock<std::mutex> lock(this->mMutex);
+			while((this->mQueueOut.size() == this->mQueueMaxSize) && !this->mReadEndClose)
+			{
+				this->cWaitFull.wait(lock);
+			}
+			if(this->mReadEndClose){
+				delete memin;
+				return false;
+			}
+			this->mQueueOut.push( memout );
+			if(this->mQueueOut.size() == 1){
+				this->cWaitEmpty.notify_one();
+				//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::write() cWaitEmpty.notify_one()" << endl;
+			}
+			this->mOffsetOut = 0;
+			this->memout = 0;
+		}
+	}
+	delete memin;
+	return true;
+}
+
+DVBT_memory *DVBT_pipe::read()
+{
+	if(this->mWriteEndClose && this->mQueueOut.empty())
+		return NULL;
+	
+	std::unique_lock<std::mutex> lock(this->mMutex);
+	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::read()" << endl;
+	//std::cerr << "\tthis->mQueueOut.size() = " << this->mQueueOut.size() << endl;
+	
+	while(this->mQueueOut.empty() && !this->mWriteEndClose)
+	{
+		this->cWaitEmpty.wait(lock);
+	}
+	if(this->mWriteEndClose && this->mQueueOut.empty())
+		return NULL;
+	
+	DVBT_memory *mem = this->mQueueOut.front();
+	this->mQueueOut.pop();
+	if(this->mQueueOut.size() == (this->mQueueMaxSize - 1))
+		this->cWaitFull.notify_one();
+
+	return mem;
+}
+
+void DVBT_pipe::CloseReadEnd()
+{
+	std::unique_lock<std::mutex> lock(this->mMutex);
+	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::CloseReadEnd()" << endl;                  
+
+	this->mReadEndClose = true;
+	this->cWaitFull.notify_one(); 
+}
+
+void DVBT_pipe::CloseWriteEnd()
+{
+	std::unique_lock<std::mutex> lock(this->mMutex);
+	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::CloseWriteEnd()" << endl;
+
+	if(this->memout)
+	{
+		memset(this->memout->ptr+this->mOffsetOut, 0, this->mReadEndSize - this->mOffsetOut);
+		
+		while((this->mQueueOut.size() == this->mQueueMaxSize) && !this->mReadEndClose)
+		{
+			this->cWaitFull.wait(lock);
+		}
+		if(this->mReadEndClose){
+			return;
+		}
+		this->mQueueOut.push( memout );
+		if(this->mQueueOut.size() == 1){
+			this->cWaitEmpty.notify_one();
+			//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::write() cWaitEmpty.notify_one()" << endl;
+		}
+		this->mOffsetOut = 0;
+		this->memout = 0;
+	}
+	this->mWriteEndClose = true;
+	this->cWaitEmpty.notify_one(); 
+}
+
+DVBT_memory *DVBT_pipe::allocMemRead()
+{
+	return new DVBT_memory(this->mReadEndSize);
+}
+
+DVBT_pipe::DVBT_pipe()
+{
+	this->mReadEndSize = 0;
+	this->mOffsetOut = 0;
+	this->memout = 0;
+	this->mWriteEndClose = false;
+	this->mReadEndClose = false;
+	this->mQueueMaxSize = DVBTENC_BUFFERS;
+
+}
+
+DVBT_pipe::DVBT_pipe(unsigned int queueMaxSize)
+{
+	this->mReadEndSize = 0;
+	this->mOffsetOut = 0;
+	this->memout = 0;
+	this->mWriteEndClose = false;
+	this->mReadEndClose = false;
+	this->mQueueMaxSize = queueMaxSize;
+}
+
+DVBT_pipe::~DVBT_pipe()
+{
+	if(this->memout)
+		delete this->memout; 
 }

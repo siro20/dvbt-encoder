@@ -21,22 +21,16 @@
 
 using namespace std;
 
-DVBT_si_sm::DVBT_si_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
+DVBT_si_sm::DVBT_si_sm(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
 {
-	
-	this->fd_in = fd_in;
-	this->fd_out = fd_out;
 	this->dvbt_settings = dvbt_settings;
-
-	this->in_multiple_of = this->dvbt_settings->ofdmuseablecarriers;
-	this->out_multiple_of = this->dvbt_settings->ofdmuseablecarriers*sizeof(dvbt_complex_t);
-
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-		
-	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of, true);
+	this->pin = pin;
+	this->pout = pout;
+	
+	this->mReadSize = this->dvbt_settings->ofdmuseablecarriers;
+	this->mWriteSize = this->dvbt_settings->ofdmuseablecarriers * sizeof(dvbt_complex_t);
+	
+	this->pin->initReadEnd( this->mReadSize );
 
 	//todo: ofdmuseablecarriers ?
 	this->Hq = new int[this->dvbt_settings->ofdmmode];
@@ -170,7 +164,7 @@ DVBT_si_sm::DVBT_si_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 		}
 	}
 	
-	this->symbol=0;
+	this->symbol = 0;
 }
 
 
@@ -182,34 +176,40 @@ DVBT_si_sm::~DVBT_si_sm()
 
 bool DVBT_si_sm::encode()
 {
-	int i;
-	dvbt_complex_t *out;
-	uint8_t *in;
-	
-	in = this->mem->get_in();
-	if(!in)
+	DVBT_memory *in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
+	if( !in || !in->size || !out || !out->ptr )
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
 		return false;
-	out = (dvbt_complex_t*)this->mem->get_out();
-	if(!out)
-		return false;
+	}
 
 	if(this->symbol & 1)
 	{
-		for(i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
+		for(unsigned int i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
 		{
-			out[i] = this->lookup[in[this->Hq[i]]];
+			((dvbt_complex_t*)out->ptr)[i] = this->lookup[in->ptr[this->Hq[i]]];
 		}
 	}
 	else
 	{
-		for(i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
+		for(unsigned int i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
 		{
-			out[this->Hq[i]] = this->lookup[in[i]];
+			((dvbt_complex_t*)out->ptr)[this->Hq[i]] = this->lookup[in->ptr[i]];
 		}
 	}
+
 	this->symbol ^=1;
-	this->mem->free_out((uint8_t*)out);
-	this->mem->free_in(in);
+
+	delete in;
+
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
 
 	return true;
 }

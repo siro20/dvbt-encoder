@@ -47,6 +47,73 @@ void print_help_msg()
 	exit(0);
 }
 
+static void read_thread(DVBT_pipe *pin)
+{
+	
+	bool err = false;
+	do{
+		DVBT_memory *mem = new DVBT_memory( 0xFFF );
+		unsigned int ret, offset;
+		offset = 0;
+		ret = 0;
+		
+		while(offset < mem->size)
+		{
+			ret = fread(mem->ptr+offset, sizeof(char), mem->size-offset, stdin);
+			if(ret <= 0){
+				err = true;
+				break;
+			}
+			offset += ret;
+		}
+		
+		if(offset < mem->size){
+			memset(mem->ptr+offset, 0, mem->size-offset);
+			err = true;
+		}
+		if(!pin->write(mem))
+			err = true;
+	}
+	while(!err);
+
+	pin->CloseWriteEnd();
+}
+
+static void write_thread(DVBT_pipe *pout)
+{
+	pout->initReadEnd( 0xFFF );
+
+	bool err = false;
+	do{                
+		DVBT_memory *mem = pout->read();
+		if(!mem || !mem->size)
+		{
+			err = true;
+			break;
+		}
+
+		unsigned int ret, offset;
+		offset = 0;
+		ret = 0;
+		while(offset < mem->size)
+		{
+			ret = fwrite(mem->ptr+offset, sizeof(char), mem->size-offset, stdout);
+			if(ret <= 0){
+				err = true;
+				break;
+			}
+			offset += ret;
+		}
+		//write failed ? just exit
+		if(offset < mem->size){
+			err = true;
+		}
+		delete mem;
+	}
+	while(!err);
+	pout->CloseReadEnd();
+}
+
 /* test function */
 int main(int argc, char *argv[])
 {
@@ -120,11 +187,22 @@ int main(int argc, char *argv[])
 		fprintf(stderr,"failed to init DVBT_Settings\n");
 		return 1;
 	}
-	DVBT_ii dvbtii(stdin,stdout,dvbtsettings);
+	
+	DVBT_pipe *pin = new DVBT_pipe();
+	DVBT_pipe *pout = new DVBT_pipe();
+	std::thread wt(write_thread, pout);
+	std::thread rt(read_thread, pin);
+
+	DVBT_ii dvbtii(pin,pout,dvbtsettings);
+
 	while(dvbtii.encode())
 	{
 	};
 
+	rt.join();
+	wt.join();
+	delete pin;
+	delete pout;
 	return 0;
 }
 

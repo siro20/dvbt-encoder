@@ -20,21 +20,19 @@
 
 using namespace std;
 
-DVBT_ed::DVBT_ed(FILE *fd_in, FILE *fd_out)
+DVBT_ed::DVBT_ed(DVBT_pipe *pin, DVBT_pipe *pout)
 {
     int i,j;
 	int pbrs = 0xa9;
 	unsigned int out=0;
-	this->in_multiple_of = 188*8;
-	this->out_multiple_of = 188*8;
+
 	this->pbrs_seq = new uint8_t[188*8];
 	this->internal_buf = new uint8_t[188*8];
-
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-		
+	this->pin = pin;
+	this->pout = pout;
+	
+	pin->initReadEnd( 188 * 8 );
+	
 	/* gen pbrs sequence */
 	for(i=1;i<188*8;i++)
 	{
@@ -61,12 +59,6 @@ DVBT_ed::DVBT_ed(FILE *fd_in, FILE *fd_out)
 		this->pbrs_seq[i] = 0x00;
 	}
 
-
-	this->mem = new DVBT_memory(fd_in, fd_out, this->in_multiple_of,this->out_multiple_of,false);
-
-	this->fd_in = fd_in;
-	this->fd_out = fd_out;
-	this->cnt = 0;
 }
 
 DVBT_ed::~DVBT_ed()
@@ -79,35 +71,34 @@ DVBT_ed::~DVBT_ed()
 bool DVBT_ed::encode()
 {
 	unsigned int i;
-	uint8_t *in;
-	uint8_t *out;
+	unsigned int cnt = 0;
+	DVBT_memory *in;
 	
-	in = this->mem->get_in();
-	if(!in)
-		return false;
-	out = this->mem->get_out();
-	if(!out)
-		return false;
-		
-#if _WIN64 || __amd64__
-	for(i=0;i<this->mem->in_size/sizeof(uint64_t);i++)
+	in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( 8 * 188 );
+	if( !in || !in->size || !out || !out->ptr )
 	{
-		((uint64_t*)out)[i] = ((uint64_t*)in)[i] ^ ((uint64_t*)this->pbrs_seq)[this->cnt];
-		this->cnt ++;
-		if( this->cnt >= 188*8/sizeof(uint64_t) )
-			this->cnt = 0;
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
 	}
-#else
-	for(i=0;i<this->mem->in_size/sizeof(uint32_t);i++)
+
+	for(i = 0; i < in->size / sizeof(size_t); i++)
 	{
-		((uint32_t*)out)[i] = ((uint32_t*)in)[i] ^ ((uint32_t*)this->pbrs_seq)[this->cnt];
-		this->cnt ++;
-		if( this->cnt >= 188*8/sizeof(uint32_t) )
-			this->cnt = 0;
+		((size_t*)out->ptr)[i] = ((size_t*)in->ptr)[i] ^ ((size_t*)this->pbrs_seq)[cnt];
+		cnt++;
+		if( cnt >= 188*8 / sizeof(size_t) )
+			cnt = 0;
 	}
-#endif
-	this->mem->free_out(out);
-	this->mem->free_in(in);
+
+	delete in;
+
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
 	
-	return true;
+	return true; 
 }

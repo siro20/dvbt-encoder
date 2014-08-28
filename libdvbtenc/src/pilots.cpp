@@ -308,10 +308,9 @@ DVBT_pilots::~DVBT_pilots()
     
 void DVBT_pilots::encode(dvbt_complex_t *in, dvbt_complex_t *out)
 {
-	int i;
 	memcpy(out,this->channels,this->dvbt_settings->ofdmcarriers*sizeof(dvbt_complex_t));
 	
-	for(i=0;i<dvbt_settings->ofdmuseablecarriers;i++)
+	for(unsigned int i=0; i < dvbt_settings->ofdmuseablecarriers; i++)
 	{
 		memcpy(&out[this->data_pointer[i]],&in[i],sizeof(dvbt_complex_t));
 	}
