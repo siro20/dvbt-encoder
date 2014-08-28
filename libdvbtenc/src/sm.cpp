@@ -20,25 +20,21 @@
 
 using namespace std;
 
-DVBT_sm::DVBT_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
+DVBT_sm::DVBT_sm(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
 {
-	int i;
-    this->fd_in = fd_in;
-    this->fd_out = fd_out;
-    this->dvbt_settings = dvbt_settings;
-    
-    this->in_multiple_of = this->dvbt_settings->ofdmuseablecarriers;
-    this->out_multiple_of = this->dvbt_settings->ofdmuseablecarriers * sizeof(dvbt_complex_t);
+	this->dvbt_settings = dvbt_settings;
 
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
+	this->mReadSize = this->dvbt_settings->ofdmuseablecarriers;
+	this->mWriteSize = this->dvbt_settings->ofdmuseablecarriers * sizeof(dvbt_complex_t);
 
-    this->lookup = new dvbt_complex_t[(1<<this->dvbt_settings->modulation)];
-    for(i=0;i<(1<<this->dvbt_settings->modulation);i++)
-    {
+	this->pin = pin;
+	this->pout = pout;
+	
+	this->pin->initReadEnd( this->mReadSize );
+
+	this->lookup = new dvbt_complex_t[(1<<this->dvbt_settings->modulation)];
+	for(unsigned int i=0; i < (1<<this->dvbt_settings->modulation);i++)
+	{
 		if(this->dvbt_settings->modulation == 2)
 		{
 			//MSB I0 -> 0x02, I1 -> 0x01
@@ -91,7 +87,6 @@ DVBT_sm::DVBT_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
 	}
 }
 
-
 DVBT_sm::~DVBT_sm()
 {
 	delete[] this->lookup;
@@ -99,24 +94,28 @@ DVBT_sm::~DVBT_sm()
 
 bool DVBT_sm::encode()
 {
-	int i;
-	uint8_t *in;
-	dvbt_complex_t *out;
-	
-	in = this->mem->get_in();
-	if(!in)
-		return false;
-	out = (dvbt_complex_t*)this->mem->get_out();
-	if(!out)
-		return false;
-	
-	for(i=0;i<this->mem->in_size;i++)
+	DVBT_memory *in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
+	if( !in || !in->size || !out || !out->ptr )
 	{
-		out[i] = this->lookup[in[i]];
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
 	}
-	
-	this->mem->free_out((uint8_t*)out);
-	this->mem->free_in(in);
+
+	for(unsigned int i=0;i<in->size;i++)
+	{
+		((dvbt_complex_t*)(out->ptr))[i] = this->lookup[in->ptr[i]];
+	}
+
+	delete in;
+
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
 
 	return true;
 }

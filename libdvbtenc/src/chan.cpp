@@ -20,27 +20,20 @@
 
 using namespace std;
 
-DVBT_chan::DVBT_chan(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
+DVBT_chan::DVBT_chan(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
 {
-	int frame,i;
 	DVBT_tps dvbt_tps(dvbt_settings);
-	
-    this->fd_in = fd_in;
-    this->fd_out = fd_out;
-    this->dvbt_settings = dvbt_settings;
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-    this->in_multiple_of = this->dvbt_settings->ofdmuseablecarriers * sizeof(dvbt_complex_t);
-    this->out_multiple_of = this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t);
 
+	this->dvbt_settings = dvbt_settings;
+	this->mReadSize = this->dvbt_settings->ofdmuseablecarriers * sizeof(dvbt_complex_t);
+	this->mWriteSize = this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t);
+	this->pin = pin;
+	this->pout = pout;
+	this->pin->initReadEnd( this->mReadSize );
 
-	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of, true);
-    
-    for(frame=0;frame<this->dvbt_settings->DVBT_FRAMES_SUPERFRAME;frame++)
-    {
-		for(i=0;i<this->dvbt_settings->DVBT_SYMBOLS_FRAME;i++)
+	for(unsigned int frame=0; frame < this->dvbt_settings->DVBT_FRAMES_SUPERFRAME; frame++)
+	{
+		for(unsigned int i=0; i < this->dvbt_settings->DVBT_SYMBOLS_FRAME; i++)
 		{
 			this->dvbt_pilots[frame][i] = new DVBT_pilots(frame,i,&dvbt_tps,dvbt_settings);
 		}
@@ -54,25 +47,30 @@ DVBT_chan::~DVBT_chan()
 
 bool DVBT_chan::encode(int frame, int symbol)
 {
-	dvbt_complex_t *out;
-	dvbt_complex_t *in;
-	
 	if(symbol >= this->dvbt_settings->DVBT_SYMBOLS_FRAME)
-		return 1;
+		return false;
 	if(frame >= this->dvbt_settings->DVBT_FRAMES_SUPERFRAME)
-		return 1;
-
-	in = (dvbt_complex_t*)this->mem->get_in();
-	if(!in)
-		return false;
-	out = (dvbt_complex_t*)this->mem->get_out();
-	if(!out)
 		return false;
 
-	this->dvbt_pilots[frame][symbol]->encode(in,out);
+	DVBT_memory *in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
+	if( !in || !in->size || !out || !out->ptr )
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
 
-	this->mem->free_out((uint8_t*)out);
-	this->mem->free_in((uint8_t*)in);
+	this->dvbt_pilots[frame][symbol]->encode((dvbt_complex_t*)(in->ptr),(dvbt_complex_t*)(out->ptr));
+
+	delete in;
+
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
 
 	return true;
 }

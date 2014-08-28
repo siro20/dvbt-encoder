@@ -20,20 +20,17 @@
 
 using namespace std;
 
-DVBT_ifft::DVBT_ifft(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
+DVBT_ifft::DVBT_ifft(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
 {
-	this->fd_in = fd_in;
-	this->fd_out = fd_out;
 	this->dvbt_settings = dvbt_settings;
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-		
-	this->in_multiple_of = this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t);
-	this->out_multiple_of = (this->dvbt_settings->ofdmmode + this->dvbt_settings->guardcarriers) * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling;
 
-	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of,false);
+	this->mReadSize = this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t);
+	this->mWriteSize = (this->dvbt_settings->ofdmmode + this->dvbt_settings->guardcarriers) * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling;
+	this->pin = pin;
+	this->pout = pout;
+	
+	this->pin->initReadEnd( this->mReadSize );
+
 	this->tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
 	this->bufA = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
 	this->bufB = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
@@ -56,29 +53,34 @@ DVBT_ifft::~DVBT_ifft()
 
 bool DVBT_ifft::encode()
 {
-	dvbt_complex_t *in;
-	fftwf_complex *out;
-	
-	in = (dvbt_complex_t*)this->mem->get_in();
-	if(!in)
+	DVBT_memory *in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
+	if( !in || !in->size || !out || !out->ptr )
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
 		return false;
-	out = (fftwf_complex*)this->mem->get_out();
-	if(!out)
-		return false;
-	
-	this->fftshift(in,this->bufA);
+	}
+
+	this->fftshift((dvbt_complex_t*)(in->ptr),this->bufA);
 	fftwf_execute(this->p);
-	
-	memcpy(out+this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling, bufB, 
+
+	memcpy(((dvbt_complex_t*)out->ptr)+this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling, bufB, 
 		this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 
 	//insert <guardcarriers> to the beginning of the buffer
-	memcpy(out,out+this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling,
+	memcpy(((dvbt_complex_t*)out->ptr),((dvbt_complex_t*)out->ptr)+this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling,
 		this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
-	
-	this->mem->free_out((uint8_t*)out);
-	this->mem->free_in((uint8_t*)in);
-	
+
+	delete in;
+
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
+
 	return true;
 }
 

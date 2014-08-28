@@ -31,20 +31,19 @@ using namespace std;
 class DVBT_ce
 {
 public:
-	DVBT_ce(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
+	DVBT_ce(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings);
 	~DVBT_ce();
 	bool encode();
 private:
-	int conv_encoder_12(uint8_t *in, uint8_t *out);
-	int conv_encoder_23(uint8_t *in, uint8_t *out);
-	int conv_encoder_34(uint8_t *in, uint8_t *out);
-	int conv_encoder_56(uint8_t *in, uint8_t *out);
-	int conv_encoder_78(uint8_t *in, uint8_t *out);
-	FILE *fd_in;
-	FILE *fd_out;
-	int in_multiple_of;
-	int out_multiple_of;
-	DVBT_memory *mem;
+	void conv_encoder_12(DVBT_memory *in, DVBT_memory *out);
+	void conv_encoder_23(DVBT_memory *in, DVBT_memory *out);
+	void conv_encoder_34(DVBT_memory *in, DVBT_memory *out);
+	void conv_encoder_56(DVBT_memory *in, DVBT_memory *out);
+	void conv_encoder_78(DVBT_memory *in, DVBT_memory *out);
+	unsigned int mReadSize;
+	unsigned int mWriteSize;
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
 	DVBT_settings* dvbt_settings;
 	uint8_t shiftreg;
 };

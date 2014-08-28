@@ -36,22 +36,21 @@ using namespace std;
 class DVBT_ifft
 {
 public:
-	DVBT_ifft(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
+	DVBT_ifft(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings);
 	~DVBT_ifft();
 	bool encode();
 private:
-	FILE *fd_in;
-	FILE *fd_out;
 	void fftshift( dvbt_complex_t *in, dvbt_complex_t *out );
-	int in_multiple_of;
-	int out_multiple_of;
-	DVBT_memory *mem;
 	DVBT_settings* dvbt_settings;
 	fftwf_plan p;
 	int fftshift_offset;
 	dvbt_complex_t *bufA;
 	dvbt_complex_t *bufB;
 	dvbt_complex_t *tmp;
+	unsigned int mReadSize;
+	unsigned int mWriteSize;
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
 };
 
 #endif

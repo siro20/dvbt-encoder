@@ -32,15 +32,14 @@ using namespace std;
 class DVBT_sm
 {
 public:
-	DVBT_sm(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
+	DVBT_sm(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings);
 	~DVBT_sm();
 	bool encode();
 private:
-	FILE *fd_in;
-	FILE *fd_out;
-	int in_multiple_of;
-	int out_multiple_of;
-	DVBT_memory *mem;
+	unsigned int mReadSize;
+	unsigned int mWriteSize;
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
 	DVBT_settings* dvbt_settings;
 	dvbt_complex_t *lookup;
 };

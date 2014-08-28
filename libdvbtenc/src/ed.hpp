@@ -30,18 +30,14 @@ using namespace std;
 class DVBT_ed
 {
 public:
-	DVBT_ed(FILE *fd_in, FILE *fd_out);
+	DVBT_ed(DVBT_pipe *pin, DVBT_pipe *pout);
 	~DVBT_ed();
 	bool encode();
 protected:
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
 	uint8_t * pbrs_seq;
 	uint8_t * internal_buf;
-	FILE *fd_in;
-	FILE *fd_out;
-	unsigned int cnt;
-	int in_multiple_of;
-	int out_multiple_of;
-	DVBT_memory *mem;
 };
 
 #endif

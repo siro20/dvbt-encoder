@@ -31,80 +31,59 @@
 
 using namespace std;
 
-#define DVBTENC_BUFFERS 6
+#define DVBTENC_BUFFERS 10
 #define DVBTENC_APROX_BUF_SIZE 1024 * 4
-
-class DVBT_threadsafe_queue
-{
-private:
-	std::queue<uint8_t *> mQueue;
-	mutex mMutex;
-	condition_variable cWaitEmpty;
-	condition_variable cWaitFull;
-
-public:
-	void push(uint8_t *data)
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		while(mQueue.size() == DVBTENC_BUFFERS)
-		{
-			cWaitFull.wait(lock);
-		}
-		mQueue.push(data);
-		if(mQueue.size() == 1)
-			cWaitEmpty.notify_one();
-	}
-
-	bool empty()
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		return mQueue.empty();
-	}
-
-	uint8_t *front()
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		while(mQueue.empty())
-		{
-			cWaitEmpty.wait(lock);
-		}
-		return mQueue.front();
-	}
-
-	void pop()
-	{
-		std::unique_lock<std::mutex> lock(mMutex);
-		mQueue.pop();
-		if(mQueue.size() == DVBTENC_BUFFERS - 1)
-			cWaitFull.notify_one();
-	}
-};
 
 class DVBT_memory
 {
 public:
+	DVBT_memory(int size);
 	~DVBT_memory();
-	DVBT_memory( FILE *fd_i, FILE *fd_o, int in_multiple_of, int out_multiple_of, bool fixed );
-	int in_size;
-	int out_size;
-	int in_multiple_of;
-	int out_multiple_of;
-	uint8_t * get_in();
-	uint8_t* get_out();
-	void free_in(uint8_t *ptr);
-	void free_out(uint8_t* ptr);
+	unsigned int size;
+	uint8_t *ptr;
+};
 
+/*
+class DVBT_threadsafe_queue
+{
+public:
+	DVBT_threadsafe_queue(int maximumSize);
+	void push(DVBT_memory *data);
+	bool empty();
+	DVBT_memory *front();
+	void pop();
 private:
-	bool write(uint8_t *ptr);
-	bool read(uint8_t *ptr);
-	void read_thread();
-	void write_thread();
-	thread rt;
-	thread wt;
-	FILE *fd_in;
-	FILE *fd_out;
-	DVBT_threadsafe_queue inQueue;
-	DVBT_threadsafe_queue outQueue;
+	std::queue<DVBT_memory *> mQueue;
+	mutex mMutex;
+	condition_variable cWaitEmpty;
+	condition_variable cWaitFull;
+	int mMaximumSize;
+};
+*/
+class DVBT_pipe
+{
+public:
+	~DVBT_pipe();
+	DVBT_pipe(unsigned int queueMaxSize);
+	DVBT_pipe();
+	void initReadEnd( unsigned int bufferSize );
+	bool write(DVBT_memory *ptr);
+	DVBT_memory *read();
+	DVBT_memory *allocMemRead();
+	void CloseReadEnd();
+	void CloseWriteEnd();
+private:
+	unsigned int mQueueMaxSize;
+	unsigned int mReadEndSize;
+	unsigned int mOffsetOut;
+	bool mWriteEndClose;
+	bool mReadEndClose;
+	mutex mMutex;
+	condition_variable cWaitEmpty;
+	condition_variable cWaitFull;
+	condition_variable cWaitInit;
+    DVBT_memory *memout;
+	std::queue<DVBT_memory *> mQueueOut;
 };
 
 #endif

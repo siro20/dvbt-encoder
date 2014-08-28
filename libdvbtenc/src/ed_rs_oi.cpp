@@ -20,19 +20,17 @@
 
 using namespace std;
 
-DVBT_ed_rs_oi::DVBT_ed_rs_oi(FILE *fd_in, FILE *fd_out)
+DVBT_ed_rs_oi::DVBT_ed_rs_oi(DVBT_pipe *pin, DVBT_pipe *pout)
 {
 	int pbrs = 0xa9;
 	unsigned int out=0;
-	this->in_multiple_of = 188*2; // multiple of 8
-	this->out_multiple_of = 204*2; // multiple of 204
+	this->mReadSize = 188*8; // multiple of 8
+	this->mWriteSize = 204*8; // multiple of 204
 	this->ed_pbrs_seq = new uint8_t[188*8];
-
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-		
+	this->pin = pin;
+	this->pout = pout;
+	
+	this->pin->initReadEnd( this->mReadSize );
 	/* gen pbrs sequence */
 	for(int i=1;i<188*8;i++)
 	{
@@ -59,8 +57,6 @@ DVBT_ed_rs_oi::DVBT_ed_rs_oi(FILE *fd_in, FILE *fd_out)
 		this->ed_pbrs_seq[i] = 0x00;
 	}
 
-	this->mem = new DVBT_memory(fd_in, fd_out, this->in_multiple_of,this->out_multiple_of,false);
-	
 	// init outer interleaver
 	for(int i=0;i<OI_SIZE;i++)
 	{
@@ -115,24 +111,25 @@ static inline void galois_mult( uint32_t *wreg, uint8_t shadow )
 bool DVBT_ed_rs_oi::encode()
 {
 	int n;
-	uint8_t *in;
-	uint8_t *out,*dataout;
+	uint8_t *dataout;
 	uint8_t shadow;
 	uint32_t wreg[4];
 	uint64_t edtmp;
 	uint32_t *datain;
 	uint8_t edout;
 	
-	in = this->mem->get_in();
-	if(!in)
+	DVBT_memory *in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
+	if( !in || !in->size || !out || !out->ptr )
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
 		return false;
-	out = this->mem->get_out();
-	if(!out)
-		return false;
+	}
 	
-	n = this->mem->in_size;
-	datain = (uint32_t*)in;
-	dataout = out;
+	n = in->size;
+	datain = (uint32_t*)in->ptr;
+	dataout = out->ptr;
 	edtmp = 0;
     do{
 		// clear register on each loop
@@ -218,9 +215,12 @@ bool DVBT_ed_rs_oi::encode()
 		}
 		n-=188;
 	}while(n > 0);
-    
-	this->mem->free_out(out);
-	this->mem->free_in(in);
 	
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
 	return true;
 }

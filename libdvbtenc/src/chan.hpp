@@ -34,15 +34,14 @@ using namespace std;
 class DVBT_chan
 {
 public:
-	DVBT_chan(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings);
+	DVBT_chan(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings);
 	~DVBT_chan();
 	bool encode(int frame, int symbol);
 private:
-	FILE *fd_in;
-	FILE *fd_out;
-	int in_multiple_of;
-	int out_multiple_of;
-	DVBT_memory *mem;
+	unsigned int mReadSize;
+	unsigned int mWriteSize;
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
 	DVBT_settings* dvbt_settings;
 	DVBT_pilots *dvbt_pilots[4][68];
 	

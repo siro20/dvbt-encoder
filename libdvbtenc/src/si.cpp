@@ -20,23 +20,17 @@
 
 using namespace std;
 
-DVBT_si::DVBT_si(FILE *fd_in, FILE *fd_out, DVBT_settings* dvbt_settings)
+DVBT_si::DVBT_si(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
 {
 	int i,rs,rs_xor,r;
 	int *hq_ptr;
-	this->fd_in = fd_in;
-	this->fd_out = fd_out;
 	this->dvbt_settings = dvbt_settings;
 
-	this->in_multiple_of = this->dvbt_settings->ofdmuseablecarriers;
-	this->out_multiple_of = this->dvbt_settings->ofdmuseablecarriers;
-
-	if(!fd_in)
-		throw std::runtime_error(__FILE__" invalid in file descriptor!\n");
-	if(!fd_out)
-		throw std::runtime_error(__FILE__" invalid out file descriptor!\n");
-		
-	this->mem = new DVBT_memory(fd_in,fd_out,this->in_multiple_of,this->out_multiple_of, true);
+	this->mReadSize = this->dvbt_settings->ofdmuseablecarriers;
+	this->mWriteSize = this->dvbt_settings->ofdmuseablecarriers;
+	this->pin = pin;
+	this->pout = pout;
+	this->pin->initReadEnd( this->mReadSize );
 
 	//todo: ofdmuseablecarriers ?
 	hq_ptr = this->Hq = new int[this->dvbt_settings->ofdmmode];
@@ -124,34 +118,38 @@ DVBT_si::~DVBT_si()
 
 bool DVBT_si::encode(int symbol)
 {
-	int i;
-	uint8_t *out;
-	uint8_t *in;
-	
-	in = this->mem->get_in();
-	if(!in)
+	DVBT_memory *in = this->pin->read();
+	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
+	if( !in || !in->size || !out || !out->ptr )
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
 		return false;
-	out = this->mem->get_out();
-	if(!out)
-		return false;
+	}
 
 	if(symbol & 1)
 	{
-		for(i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
+		for(unsigned int i=0; i < this->dvbt_settings->ofdmuseablecarriers;i++)
 		{
-			out[i] = in[this->Hq[i]];
+			out->ptr[i] = in->ptr[this->Hq[i]];
 		}
 	}
 	else
 	{
-		for(i=0;i<this->dvbt_settings->ofdmuseablecarriers;i++)
+		for(unsigned int i=0; i < this->dvbt_settings->ofdmuseablecarriers;i++)
 		{
-			out[this->Hq[i]] = in[i];
+			out->ptr[this->Hq[i]] = in->ptr[i];
 		}
 	}
-	
-	this->mem->free_out((uint8_t*)out);
-	this->mem->free_in(in);
+
+	delete in;
+
+	if(!this->pout->write(out))
+	{
+		this->pout->CloseWriteEnd();
+		this->pin->CloseReadEnd();
+		return false;
+	}
 
 	return true;
 }
