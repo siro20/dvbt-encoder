@@ -16,43 +16,51 @@
 *
 */
 
-#include "ifft.hpp"
+#include "chan_ifft.hpp"
 
 using namespace std;
 
-DVBT_ifft::DVBT_ifft(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
+DVBT_chan_ifft::DVBT_chan_ifft(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
 {
-	this->dvbt_settings = dvbt_settings;
+	DVBT_tps dvbt_tps(dvbt_settings);
 
-	this->mReadSize = this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t);
+	this->dvbt_settings = dvbt_settings;
+	this->mReadSize = this->dvbt_settings->ofdmuseablecarriers * sizeof(dvbt_complex_t);
 	this->mWriteSize = (this->dvbt_settings->ofdmmode + this->dvbt_settings->guardcarriers) * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling;
 	this->pin = pin;
 	this->pout = pout;
-	
 	this->pin->initReadEnd( this->mReadSize );
 
-	this->tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
+	for(unsigned int frame=0; frame < this->dvbt_settings->DVBT_FRAMES_SUPERFRAME; frame++)
+	{
+		for(unsigned int i=0; i < this->dvbt_settings->DVBT_SYMBOLS_FRAME; i++)
+		{
+			this->dvbt_pilots[frame][i] = new DVBT_pilots(frame,i,&dvbt_tps,dvbt_settings,true);
+		}
+	}
+
 	this->bufA = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
 	this->bufB = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
-	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling, (fftwf_complex*)this->bufA, 
-		(fftwf_complex*)this->bufB, FFTW_BACKWARD, FFTW_PATIENT|FFTW_DESTROY_INPUT);
+	this->p = fftwf_plan_dft_1d(this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling, (fftwf_complex*)(this->bufA), 
+		(fftwf_complex*)(this->bufB), FFTW_BACKWARD, FFTW_PATIENT|FFTW_DESTROY_INPUT);
 
-	memset(this->tmp, 0, this->dvbt_settings->ofdmmode * sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
-	
-	this->fftshift_offset = (this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling - this->dvbt_settings->ofdmcarriers + 1)/2;
 }
 
 
-DVBT_ifft::~DVBT_ifft()
+DVBT_chan_ifft::~DVBT_chan_ifft()
 {
 	fftwf_destroy_plan(this->p);
 	delete[] this->bufA;
 	delete[] this->bufB;
-	delete[] this->tmp;
 }
 
-bool DVBT_ifft::encode()
+bool DVBT_chan_ifft::encode(int frame, int symbol)
 {
+	if(symbol >= this->dvbt_settings->DVBT_SYMBOLS_FRAME)
+		return false;
+	if(frame >= this->dvbt_settings->DVBT_FRAMES_SUPERFRAME)
+		return false;
+
 	DVBT_memory *in = this->pin->read();
 	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
 	if( !in || !in->size || !out || !out->ptr )
@@ -62,7 +70,9 @@ bool DVBT_ifft::encode()
 		return false;
 	}
 
-	this->fftshift((dvbt_complex_t*)(in->ptr),this->bufA);
+	//insert pilots and data and fftshift
+	this->dvbt_pilots[frame][symbol]->encode((dvbt_complex_t*)(in->ptr),this->bufA);
+	//do inverse FFT on bufA, bufB
 	fftwf_execute(this->p);
 
 	memcpy(((dvbt_complex_t*)out->ptr)+this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling, bufB, 
@@ -82,14 +92,4 @@ bool DVBT_ifft::encode()
 	}
 
 	return true;
-}
-
-void DVBT_ifft::fftshift( dvbt_complex_t *in, dvbt_complex_t *out )
-{
-	/* shift */
-	memcpy(this->tmp + this->fftshift_offset , in , this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t) );
-
-	/* swap */
-	memcpy(out, this->tmp + this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling/2, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling);
-	memcpy(out + this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling/2 , this->tmp, this->dvbt_settings->ofdmmode / 2 * sizeof(dvbt_complex_t) * this->dvbt_settings->oversampling);
 }
