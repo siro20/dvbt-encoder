@@ -216,6 +216,8 @@ bool DVBT_ed_rs_oi::encode()
 		n-=188;
 	}while(n > 0);
 	
+	delete in;
+	
 	if(!this->pout->write(out))
 	{
 		this->pout->CloseWriteEnd();
