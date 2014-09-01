@@ -33,7 +33,7 @@ CPPFLAGS := -Wall -Wextra -Wno-unused-parameter \
 		  -fPIC \
 		  -std=c++11 -D_GNU_SOURCE $(LIB_VER_FLAG) \
 		  -I$(INC_DIR) \
-		  -msse -msse2 -msse3 -O3 -ggdb3 
+		  -march=native -O3 -ggdb3 
 
 LDFLAGS := -fPIC -lfftw3f_omp
 
