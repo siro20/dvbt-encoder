@@ -29,7 +29,6 @@ DVBT_quant::DVBT_quant(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_sett
 	this->pin = pin;
 	this->pout = pout;
 
-
 	switch(this->dvbt_settings->outputformat)
 	{
 		case CHAR:

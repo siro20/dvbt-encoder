@@ -27,12 +27,10 @@
 #include <thread>
 #include <queue>
 #include <condition_variable>
-#include <chrono>
 
 using namespace std;
 
-#define DVBTENC_BUFFERS 10
-#define DVBTENC_APROX_BUF_SIZE 1024 * 4
+#define DVBTENC_BUFFERS 32
 
 class DVBT_memory
 {
@@ -43,34 +41,25 @@ public:
 	uint8_t *ptr;
 };
 
-/*
-class DVBT_threadsafe_queue
-{
-public:
-	DVBT_threadsafe_queue(int maximumSize);
-	void push(DVBT_memory *data);
-	bool empty();
-	DVBT_memory *front();
-	void pop();
-private:
-	std::queue<DVBT_memory *> mQueue;
-	mutex mMutex;
-	condition_variable cWaitEmpty;
-	condition_variable cWaitFull;
-	int mMaximumSize;
-};
-*/
 class DVBT_pipe
 {
 public:
 	~DVBT_pipe();
-	DVBT_pipe(unsigned int queueMaxSize);
-	DVBT_pipe();
+	//identifyer for debugging, max read end queue size 
+	DVBT_pipe(const char *strIdent, unsigned int queueMaxSize);
+	//identifyer for debugging, max read end queue size is set to DVBTENC_BUFFERS
+	DVBT_pipe(const char *strIdent);
+	//init read end for dynamic memory conversions
 	void initReadEnd( unsigned int bufferSize );
+	//write a buffer to the queue, might fail if the read end has been closed, might block
 	bool write(DVBT_memory *ptr);
+	//fetch one item from the queue, might block, might return NULL or an empty buffer
 	DVBT_memory *read();
+	//alloc a buffer with size mReadEndSize
 	DVBT_memory *allocMemRead();
+	//close read end
 	void CloseReadEnd();
+	//close write end
 	void CloseWriteEnd();
 private:
 	unsigned int mQueueMaxSize;
@@ -78,6 +67,7 @@ private:
 	unsigned int mOffsetOut;
 	bool mWriteEndClose;
 	bool mReadEndClose;
+	const char *mIdent;
 	mutex mMutex;
 	condition_variable cWaitEmpty;
 	condition_variable cWaitFull;
