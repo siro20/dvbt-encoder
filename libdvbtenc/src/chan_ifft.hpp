@@ -16,39 +16,42 @@
 *
 */
 
-#ifndef _DVBTENCODER_PILOTS_H__
-#define _DVBTENCODER_PILOTS_H__
+#ifndef _DVBTENC_CHAN_IFFT_H__
+#define _DVBTENC_CHAN_IFFT_H__
 
 #include <iostream>
-#include <cstdio>
-#include <stdexcept>
 #include <inttypes.h>
 #include <cstring>
 #include <cstdio>
+#include <cmath>
+extern "C" {
+#include <fftw3.h>
+}
+#include "memory.hpp"
 #include "settings.hpp"
 #include "tps.hpp"
+#include "pilots.hpp"
 
 using namespace std;
 
-class DVBT_pilots
+class DVBT_chan_ifft
 {
 public:
-	DVBT_pilots(int frame, int symbol, DVBT_tps *dvbt_tps, DVBT_settings *dvbt_settings, bool fftshift);
-	~DVBT_pilots();
-	
-	void encode(dvbt_complex_t *in, dvbt_complex_t *out);
+	DVBT_chan_ifft(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings);
+	~DVBT_chan_ifft();
+	bool encode(int frame, int symbol);
 private:
-	int LEN_TPSPILOTS_2K;
-	int LEN_TPSPILOTS_8K;
-	int LEN_CONTPILOTS_2K;
-	int LEN_CONTPILOTS_8K;
-	int LEN_SCATPILOTS_2K;
-	int LEN_SCATPILOTS_8K;
-	void generate_prbs(unsigned char *d_wk, int ofdmcarriers);
-	DVBT_settings *dvbt_settings;
-	unsigned int *data_pointer;
-	dvbt_complex_t *channels;
-	bool mfftshift;
+	unsigned int mReadSize;
+	unsigned int mWriteSize;
+	DVBT_pipe *pin;
+	DVBT_pipe *pout;
+	DVBT_settings* dvbt_settings;
+	DVBT_pilots *dvbt_pilots[4][68];
+	fftwf_plan p;
+	int fftshift_offset;
+	dvbt_complex_t *bufA;
+	dvbt_complex_t *bufB;
+	dvbt_complex_t *tmp;
 };
 
 #endif

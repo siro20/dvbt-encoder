@@ -11,8 +11,8 @@ CODERATE=3
 MODULATION=2
 OVERSAMPLING=2
 GUARDINTERVAL=16
-INPUTDIMENSIONX=1680
-INPUTDIMENSIONY=1050
+INPUTDIMENSIONX=1360
+INPUTDIMENSIONY=768
 SCALEX=720
 SCALEY=576
 SERVICENAME="Stream#1"
@@ -20,15 +20,13 @@ SERVICEPROVIDER="HomeTV"
 FONTFILE="/usr/share/fonts/dejavu/DejaVuSans.ttf"
 
 #static content
-#LD_LIBRARY_PATH=../libdvbtenc/lib
-#export LD_LIBRARY_PATH
 if [ ! -e "/tmp/fifo" ]; then
 	mkfifo /tmp/fifo
 fi
 
 if [ ! `which bladeRF-cli 2>/dev/null` ]; then
 echo "could not find bladeRF-cli"
-exit
+#exit
 fi
 
 dvbtencargs="-o $FFTSIZE -b $BANDWIDTH -c $CODERATE -m $MODULATION -g $GUARDINTERVAL -a 1 -i 0 -v $OVERSAMPLING -s 2"
@@ -36,13 +34,13 @@ muxrate=`./dvbtenc $dvbtencargs -p`
 samplerate=`./dvbtenc $dvbtencargs -z`
 
 if [ ! `which xrandr 2>/dev/null` ]; then
-echo "could not find xrandr, please modify this script and hardcode screen resolution using INPUTDIMENSION"
-exit
+echo "WARN: could not find xrandr, please modify this script and hardcode screen resolution using INPUTDIMENSION"
 else
 resolution=($(xrandr|grep \*|cut -d ' ' -f4))
-INPUTDIMENSIONX=($(echo $resolution|cut -d 'x' -f1))
-INPUTDIMENSIONY=($(echo $resolution|cut -d 'x' -f2))
+INPUTDIMENSIONX=($(echo $resolution|cut -d 'x' -f1)/16*16)
+INPUTDIMENSIONY=($(echo $resolution|cut -d 'x' -f2)/16*16)
 fi
+resolution="$((INPUTDIMENSIONX))x$((INPUTDIMENSIONY))"
 
 scalelogox=$(($INPUTDIMENSIONX/10))
 scalelogoy=$(($INPUTDIMENSIONY/8))
@@ -72,39 +70,42 @@ echo "tx config file=/tmp/fifo format=bin repeat=0 delay=0 buffers=64" >> /tmp/b
 echo "tx start" >> /tmp/bladerfcli.tmp 
 echo "tx wait" >> /tmp/bladerfcli.tmp 
 
-bladeRF-cli -s /tmp/bladerfcli.tmp &
+#bladeRF-cli -s /tmp/bladerfcli.tmp &
 
 if [ `which ffmpeg 2>/dev/null` ]; then
 #ffmpeg -i "$1"
+#-b:v $videobitrate \
 ffmpeg \
--f x11grab -r 25 -s ${resolution[0]} -i :0.0 \
+-threads 4 \
+-f x11grab -r 10 -s ${resolution[0]} -i :0.0 \
 -filter:v "movie=logo.png,scale=$scalelogox:$scalelogoy[watermark];[in][watermark] overlay=main_w-overlay_w*1.1:overlay_h*0.1:,scale=$SCALEX:$SCALEY,drawtext=fontfile='"$FONTFILE"':text='"$SERVICEPROVIDER"':x=(main_w-text_w):y=$scalelogoy-text_h:fontsize=20:fontcolor=white[out]" \
 -codec:a mp2 \
--b:a 192k \
+-b:a 160k \
 -muxrate $muxrate \
--threads 4 \
 -codec:v mpeg2video \
+-pix_fmt yuv422p \
 -mpegts_original_network_id 0x1122 \
 -mpegts_transport_stream_id 0x3344 \
 -mpegts_service_id 0x5566 \
 -mpegts_pmt_start_pid 0x1500 \
 -mpegts_start_pid 0x150 \
+-aspect 16:9 \
+-g 12 \
+-mbd rd \
+-trellis 2 \
+-cmp 2 \
+-subcmp 2 \
 -metadata service_provider=$SERVICEPROVIDER \
 -metadata service_name=$SERVICENAME \
 -metadata language=ger \
 -metadata title="dvbtenc by Patrick Rudolph 2014" \
 -metadata comment="comment" \
--aspect 16:9 \
--mbd rd \
--trellis 2 \
--cmp 2 \
--subcmp 2 \
--qscale 1 \
 -y \
 -r 25 \
 -vsync 1 \
 -async 25 \
--f mpegts - 2>ffmpeg.log | \
+-f mpegts - 2>ffmpeg.log > /tmp/fifo
+#| \
 ./dvbtenc -o $FFTSIZE \
 -b $BANDWIDTH \
 -c $CODERATE \
@@ -119,7 +120,7 @@ elif [ `which avconv 2>/dev/null` ]; then
 avconv -r 25 -s ${resolution[0]} -i :0.0 \
 -filter:v "movie=logo.png,scale=$scalelogox:$scalelogoy[watermark];[in][watermark] overlay=main_w-overlay_w:1,scale=$SCALEX:$SCALEY,drawtext=fontfile='$FONTFILE':text='hackerTV  ':x=(main_w-text_w):y=$scalelogoy+text_h*2:fontsize=20:fontcolor=white[out]" \
 -codec:a mp2 \
--b:a 192k \
+-b:a 160k \
 -muxrate $muxrate \
 -threads 4 \
 -codec:v mpeg2video \
@@ -140,7 +141,8 @@ avconv -r 25 -s ${resolution[0]} -i :0.0 \
 -r 25 \
 -vsync 1 \
 -async 25 \
--f mpegts - 2>avconv.log | \
+-f mpegts - 2>avconv.log > /tmp/fifo
+#| \
 ./dvbtenc -o $FFTSIZE \
 -b $BANDWIDTH \
 -c $CODERATE \

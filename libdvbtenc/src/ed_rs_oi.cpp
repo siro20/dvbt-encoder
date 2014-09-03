@@ -110,7 +110,6 @@ static inline void galois_mult( uint32_t *wreg, uint8_t shadow )
 //encodes length packets, assuming that the MPEG TS sync byte is at offset 0
 bool DVBT_ed_rs_oi::encode()
 {
-	int n;
 	uint8_t *dataout;
 	uint8_t shadow;
 	uint32_t wreg[4];
@@ -127,15 +126,15 @@ bool DVBT_ed_rs_oi::encode()
 		return false;
 	}
 	
-	n = in->size;
 	datain = (uint32_t*)in->ptr;
 	dataout = out->ptr;
 	edtmp = 0;
-    do{
+    for(unsigned int j=0; j <  this->mReadSize; j+= 188)
+    {
 		// clear register on each loop
 		memset( wreg, 0 , sizeof(wreg) );
 		shadow = 0;
-        for(int i=0; i<188; i++)
+        for(unsigned int i=0; i<188; i++)
         {
 			/* energy dispersal */
 			if((i & 0x3) == 0){
@@ -178,7 +177,7 @@ bool DVBT_ed_rs_oi::encode()
 			if(this->oicnt == OI_SIZE)
 				this->oicnt = 0;
 		}
-		for(int i=0; i<15; i++)
+		for(unsigned int i=0; i<15; i++)
 		{
 			/* shift in zeros: wreg[3] |= (0&0xff)<<24; , is already zero ! */
 
@@ -201,7 +200,7 @@ bool DVBT_ed_rs_oi::encode()
 		galois_mult( wreg, shadow );
 
 		/* outer interleaver */
-		for(int i=0; i<16; i++){
+		for(unsigned int i=0; i<16; i++){
 			/* insert new byte into buffer */
 			this->oi_queues[this->oicnt].push(((uint8_t*)wreg)[i]);
 			
@@ -213,8 +212,7 @@ bool DVBT_ed_rs_oi::encode()
 			if(this->oicnt == OI_SIZE)
 				this->oicnt = 0;
 		}
-		n-=188;
-	}while(n > 0);
+	}
 	
 	delete in;
 	

@@ -60,7 +60,7 @@ static void read_thread(DVBT_pipe *pin, bool benchmark)
 	
 	bool err = false;
 	do{
-		DVBT_memory *mem = new DVBT_memory( 0xFFF );
+		DVBT_memory *mem = new DVBT_memory( 0xFFFF );
 		unsigned int ret, offset;
 		offset = 0;
 		ret = 0;
@@ -96,7 +96,7 @@ static void read_thread(DVBT_pipe *pin, bool benchmark)
 
 static void write_thread(DVBT_pipe *pout)
 {
-	pout->initReadEnd( 0xFFF );
+	pout->initReadEnd( 0xFFFF );
 
 	bool err = false;
 	do{                
@@ -237,8 +237,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	DVBT_pipe *pin = new DVBT_pipe();
-	DVBT_pipe *pout = new DVBT_pipe();
+	DVBT_pipe *pin = new DVBT_pipe("pin");
+	DVBT_pipe *pout = new DVBT_pipe("pout");
 	std::thread wt(write_thread, pout);
 	std::thread rt(read_thread, pin, benchmark);
 	

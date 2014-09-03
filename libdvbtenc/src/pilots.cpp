@@ -20,7 +20,7 @@
 
 using namespace std;
 
-DVBT_pilots::DVBT_pilots(int frame, int symbol, DVBT_tps *dvbt_tps, DVBT_settings *dvbt_settings)
+DVBT_pilots::DVBT_pilots(int frame, int symbol, DVBT_tps *dvbt_tps, DVBT_settings *dvbt_settings, bool fftshift)
 {
 	int i,j,k;
 static const int tpspilots[68] = { 34, 50, 209, 346, 413, 569, 595, 688, 790, 901, 1073, 1219, 1262, 1286, 1469, 1594, 1687, 1738, 
@@ -158,8 +158,10 @@ static const int scatpilots[4][568] = {
 					6705, 6717, 6729, 6741, 6753, 6765, 6777, 6789, 6801, 6813 },
 				};
 
-	this->pbrs_pilots = new unsigned char[dvbt_settings->ofdmcarriers];
-	this->generate_prbs(this->pbrs_pilots,dvbt_settings->ofdmcarriers);
+	this->dvbt_settings = dvbt_settings;
+	this->mfftshift = fftshift;
+	unsigned char *pbrs_pilots = new unsigned char[dvbt_settings->ofdmcarriers];
+	this->generate_prbs(pbrs_pilots, dvbt_settings->ofdmcarriers);
 
 	//constants 
 	this->LEN_TPSPILOTS_2K = 17;
@@ -170,12 +172,9 @@ static const int scatpilots[4][568] = {
 
 	this->LEN_SCATPILOTS_2K = 142;
 	this->LEN_SCATPILOTS_8K = 568;
-	
-	this->dvbt_settings = dvbt_settings;
-	
-	//overallocated, just new ofdmcarriers
-	this->channels = new dvbt_complex_t[dvbt_settings->ofdmmode];
-	this->data_pointer = new int[dvbt_settings->ofdmuseablecarriers];
+
+	this->channels = new dvbt_complex_t[this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling];
+	this->data_pointer = new unsigned int[dvbt_settings->ofdmuseablecarriers];
 	
 	j = 0;
 	if( dvbt_settings->ofdmmode == 2048 )
@@ -296,7 +295,28 @@ static const int scatpilots[4][568] = {
 		}
 	}
 	
-	delete[] this->pbrs_pilots;
+	if(fftshift)
+	{
+		unsigned int fftshift_offset = (this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling - this->dvbt_settings->ofdmcarriers + 1)/2;
+		dvbt_complex_t* tmp = new dvbt_complex_t[this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling];
+		unsigned int swap_cnt = this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling/2;
+		memset(tmp, 0, this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling*sizeof(dvbt_complex_t));
+		// shift
+		memcpy(tmp + fftshift_offset, this->channels, this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t) );
+		// swap
+		memcpy(this->channels, tmp + swap_cnt, swap_cnt * sizeof(dvbt_complex_t));
+		memcpy(this->channels + swap_cnt, tmp, swap_cnt * sizeof(dvbt_complex_t));
+		delete[] tmp;
+		for(i=0; i < dvbt_settings->ofdmuseablecarriers; i++)
+		{
+			this->data_pointer[i] += fftshift_offset;
+			this->data_pointer[i] += swap_cnt;
+			if(this->data_pointer[i] >= swap_cnt * 2)
+				this->data_pointer[i] -= swap_cnt * 2;
+		}
+	}
+	
+	delete[] pbrs_pilots;
 }
 
 DVBT_pilots::~DVBT_pilots()
@@ -305,14 +325,19 @@ DVBT_pilots::~DVBT_pilots()
 	delete[] this->data_pointer;
 }
 
-    
 void DVBT_pilots::encode(dvbt_complex_t *in, dvbt_complex_t *out)
 {
-	memcpy(out,this->channels,this->dvbt_settings->ofdmcarriers*sizeof(dvbt_complex_t));
-	
-	for(unsigned int i=0; i < dvbt_settings->ofdmuseablecarriers; i++)
+	if(this->mfftshift)
 	{
-		memcpy(&out[this->data_pointer[i]],&in[i],sizeof(dvbt_complex_t));
+		memcpy(out,this->channels,this->dvbt_settings->ofdmmode*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
+	}
+	else
+	{
+		memcpy(out,this->channels, this->dvbt_settings->ofdmcarriers * sizeof(dvbt_complex_t));
+	}
+	for(unsigned int i=0; i < this->dvbt_settings->ofdmuseablecarriers; i++)
+	{
+		out[this->data_pointer[i]] = in[i];
 	}
 }
 

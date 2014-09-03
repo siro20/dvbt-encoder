@@ -35,7 +35,7 @@ DVBT_chan::DVBT_chan(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settin
 	{
 		for(unsigned int i=0; i < this->dvbt_settings->DVBT_SYMBOLS_FRAME; i++)
 		{
-			this->dvbt_pilots[frame][i] = new DVBT_pilots(frame,i,&dvbt_tps,dvbt_settings);
+			this->dvbt_pilots[frame][i] = new DVBT_pilots(frame,i,&dvbt_tps,dvbt_settings,false);
 		}
 	}
 }

@@ -28,6 +28,8 @@
 
 #include "ed_rs_oi.hpp"
 #include "si_sm.hpp"
+#include "chan_ifft.hpp"
+#include "chan_ifft_quant.hpp"
 
 #include "ed.hpp"
 #include "rs.hpp"
@@ -127,7 +129,7 @@ static void _proc_sm(FILE* fd_in, FILE* fd_out,DVBT_settings *dvbtsettings)
 	fclose(fd_in);
 	fclose(fd_out);
 	exit(0);
-}*/
+}
 
 static void _proc_chan(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
 {
@@ -154,17 +156,58 @@ static void _proc_ifft(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettin
 	while(dvbtifft.encode())
 	{};
 }
+*/
 
+static void _proc_chan_ifft(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
+{
+	unsigned int symbol;
+	unsigned int frame;
+	symbol = 0;
+	frame = 0;
+	DVBT_chan_ifft dvbtchanifft(pin,pout,dvbtsettings);
+	while(dvbtchanifft.encode(frame, symbol))
+	{
+		symbol++;
+		if(symbol == 68)
+		{
+			symbol = 0;
+			frame++;
+			frame %= 4;
+		}
+	};
+}
+
+static void _proc_chan_ifft_quant(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
+{
+	unsigned int symbol;
+	unsigned int frame;
+	symbol = 0;
+	frame = 0;
+	DVBT_chan_ifft_quant dvbtchanifftquant(pin,pout,dvbtsettings);
+	while(dvbtchanifftquant.encode(frame, symbol))
+	{
+		symbol++;
+		if(symbol == 68)
+		{
+			symbol = 0;
+			frame++;
+			frame %= 4;
+		}
+	};
+}
+/*
 static void _proc_quant(DVBT_pipe* pin, DVBT_pipe* pout, DVBT_settings *dvbtsettings)
 {
 	DVBT_quant dvbtquant(pin,pout,dvbtsettings);
 	while(dvbtquant.encode())
 	{};
 }
-
+*/
 typedef void(*funcs)(DVBT_pipe*,DVBT_pipe*,DVBT_settings*);
 funcs FunctionPointers[] = //{_proc_ed,_proc_rs,_proc_oi,_proc_ce,_proc_ii,_proc_si,_proc_sm,_proc_chan,_proc_ifft,_proc_quant};
-{_proc_ed_rs_oi,_proc_ce,_proc_ii,_proc_si_sm,_proc_chan,_proc_ifft,_proc_quant};
+{_proc_ed_rs_oi,_proc_ce,_proc_ii,_proc_si_sm,_proc_chan_ifft_quant};
+const char* funcnames[] =
+{"_proc_ed_rs_oi","_proc_ce","_proc_ii","_proc_si_sm","_proc_chan_ifft_quant"};
 
 /* test function */
 DVBT_enc::DVBT_enc(DVBT_pipe* pin, DVBT_pipe* pout, DVBT_settings *dvbt_settings)
@@ -175,7 +218,7 @@ DVBT_enc::DVBT_enc(DVBT_pipe* pin, DVBT_pipe* pout, DVBT_settings *dvbt_settings
 	
 	for(unsigned int i=0;i<sizeof(FunctionPointers)/sizeof(funcs)-1;i++)
 	{
-		DVBT_pipe *p = new DVBT_pipe();
+		DVBT_pipe *p = new DVBT_pipe(funcnames[i]);
 		std::thread *wt = new std::thread(FunctionPointers[i], lastp, p, dvbt_settings);
 		this->threads.push(wt);
 		this->pipes.push(p);
