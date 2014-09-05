@@ -45,20 +45,19 @@ DVBT_chan_ifft_quant::DVBT_chan_ifft_quant(DVBT_pipe *pin, DVBT_pipe *pout, DVBT
 	
 	this->mGuardOffset = this->dvbt_settings->guardcarriers*this->dvbt_settings->oversampling;
 	this->mBufsize = this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling;
-        this->mQuantCnt = this->dvbt_settings->ofdmmode * this->dvbt_settings->oversampling;
 
 	switch(this->dvbt_settings->outputformat)
 	{
 		case CHAR:
 		case UCHAR:
-			this->mWriteSize = 2 * (this->dvbt_settings->ofdmmode+this->dvbt_settings->guardcarriers) * this->dvbt_settings->oversampling * sizeof(char);			
+			this->mWriteSize = 2 * (this->dvbt_settings->ofdmmode+this->dvbt_settings->guardcarriers) * this->dvbt_settings->oversampling * sizeof(char);
 			break;
 		case SHORT:
 		case USHORT:
-                       	this->mWriteSize = 2 * (this->dvbt_settings->ofdmmode+this->dvbt_settings->guardcarriers) * this->dvbt_settings->oversampling * sizeof(short int);
+			this->mWriteSize = 2 * (this->dvbt_settings->ofdmmode+this->dvbt_settings->guardcarriers) * this->dvbt_settings->oversampling * sizeof(short int);
 			break;
 		case FLOAT:
-                       	this->mWriteSize = 2 * (this->dvbt_settings->ofdmmode+this->dvbt_settings->guardcarriers) * this->dvbt_settings->oversampling * sizeof(float);
+			this->mWriteSize = 2 * (this->dvbt_settings->ofdmmode+this->dvbt_settings->guardcarriers) * this->dvbt_settings->oversampling * sizeof(float);
 			break;
 	}
 }
@@ -95,44 +94,56 @@ bool DVBT_chan_ifft_quant::encode(int frame, int symbol)
 	switch(this->dvbt_settings->outputformat)
 	{
 		case 0:
-			for(unsigned int i=0;i<this->mQuantCnt;i++)
+			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
 				((dvbt_complex_char_t*)(out->ptr))[i+this->mGuardOffset].x = (char)(this->bufB[i].x*this->dvbt_settings->normalisation);
 				((dvbt_complex_char_t*)(out->ptr))[i+this->mGuardOffset].y = (char)(this->bufB[i].y*this->dvbt_settings->normalisation);
 			}
+			//insert <guardcarriers> to the beginning of the buffer
+			memcpy((dvbt_complex_char_t*)(out->ptr),((dvbt_complex_char_t*)(out->ptr))+this->mBufsize,
+				this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_char_t)*this->dvbt_settings->oversampling);
 			break;
 		case 1:
-			for(unsigned int i=0;i<this->mQuantCnt;i++)
+			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
 				((dvbt_complex_uchar_t*)(out->ptr))[i+this->mGuardOffset].x = (unsigned char)(this->bufB[i].x*this->dvbt_settings->normalisation)+0x80;
 				((dvbt_complex_uchar_t*)(out->ptr))[i+this->mGuardOffset].y = (unsigned char)(this->bufB[i].y*this->dvbt_settings->normalisation)+0x80;
 			}
+			//insert <guardcarriers> to the beginning of the buffer
+			memcpy((dvbt_complex_uchar_t*)(out->ptr),((dvbt_complex_uchar_t*)(out->ptr))+this->mBufsize,
+				this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_uchar_t)*this->dvbt_settings->oversampling);
 			break;
 		case 2:
-			for(unsigned int i=0;i<this->mQuantCnt;i++)
+			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
 				((dvbt_complex_short_t*)(out->ptr))[i+this->mGuardOffset].x = (short int)(this->bufB[i].x*this->dvbt_settings->normalisation);
 				((dvbt_complex_short_t*)(out->ptr))[i+this->mGuardOffset].y = (short int)(this->bufB[i].y*this->dvbt_settings->normalisation);
 			}
+			//insert <guardcarriers> to the beginning of the buffer
+			memcpy((dvbt_complex_short_t*)(out->ptr),((dvbt_complex_short_t*)(out->ptr))+this->mBufsize,
+				this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_short_t)*this->dvbt_settings->oversampling);
 			break;
 		case 3:
-			for(unsigned int i=0;i<this->mQuantCnt;i++)
+			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
 				((dvbt_complex_ushort_t*)(out->ptr))[i+this->mGuardOffset].x = (unsigned short int)(this->bufB[i].x*this->dvbt_settings->normalisation)+0x8000;
 				((dvbt_complex_ushort_t*)(out->ptr))[i+this->mGuardOffset].y = (unsigned short int)(this->bufB[i].y*this->dvbt_settings->normalisation)+0x8000;
 			}
+			//insert <guardcarriers> to the beginning of the buffer
+			memcpy((dvbt_complex_ushort_t*)(out->ptr),((dvbt_complex_ushort_t*)(out->ptr))+this->mBufsize,
+				this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_ushort_t)*this->dvbt_settings->oversampling);
 			break;
 		case 4:
-			for(unsigned int i=0;i<this->mQuantCnt;i++)
+			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
 				((dvbt_complex_t*)(out->ptr))[i+this->mGuardOffset].x = this->bufB[i].x*this->dvbt_settings->normalisation;
 				((dvbt_complex_t*)(out->ptr))[i+this->mGuardOffset].y = this->bufB[i].y*this->dvbt_settings->normalisation;
 			}
+			//insert <guardcarriers> to the beginning of the buffer
+			memcpy((dvbt_complex_t*)(out->ptr),((dvbt_complex_t*)(out->ptr))+this->mBufsize,
+				this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 			break;
 	}
-	//insert <guardcarriers> to the beginning of the buffer
-	memcpy(((dvbt_complex_t*)out->ptr),((dvbt_complex_t*)out->ptr)+this->dvbt_settings->ofdmmode*this->dvbt_settings->oversampling,
-		this->dvbt_settings->guardcarriers*sizeof(dvbt_complex_t)*this->dvbt_settings->oversampling);
 
 	delete in;
 
