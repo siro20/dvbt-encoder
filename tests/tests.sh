@@ -110,6 +110,14 @@ else
 fi
 rm /tmp/output.bin
 
+cat ./$folderpath/output_ma.bin | ./chan_ifft_quant $arguments > /tmp/output.bin
+if ./float_cmp ./$folderpath/output.bin /tmp/output.bin 0.25 ; then
+  echo chan_ifft_quant same
+else
+  echo chan_ifft_quant different
+fi
+rm /tmp/output.bin
+
 arguments="-o 8192 -b 7 -c 3 -g 8 -m 4 -a 1 -s 4"
 folderpath="ref_8K_16QAM_2_3_8"
 echo "****************"
@@ -195,7 +203,7 @@ fi
 rm /tmp/output_fd_cmp.bin
 
 cat ./$folderpath/output_fd.bin | ./ifft $arguments > /tmp/output_cmp.bin
-if ./float_cmp ./$folderpath/output.bin /tmp/output_cmp.bin 0.25 ; then
+if ./float_cmp ./$folderpath/output.bin /tmp/output_cmp.bin 10 ; then
   echo ifft same
 else
   echo ifft different
@@ -203,7 +211,7 @@ fi
 rm /tmp/output_cmp.bin
 
 cat ./$folderpath/output_ma.bin | ./chan_ifft $arguments > /tmp/output_cmp.bin
-if ./float_cmp ./$folderpath/output.bin /tmp/output_cmp.bin 0.25 ; then
+if ./float_cmp ./$folderpath/output.bin /tmp/output_cmp.bin 10 ; then
   echo chan_ifft same
 else
   echo chan_ifft different
@@ -211,10 +219,18 @@ fi
 rm /tmp/output_cmp.bin
 
 cat ./$folderpath/test.m2v | ./dvbtenc $arguments > /tmp/output.bin
-if ./float_cmp ./$folderpath/output.bin /tmp/output.bin 0.25 ; then
+if ./float_cmp ./$folderpath/output.bin /tmp/output.bin 10 ; then
   echo dvbtenc same
 else
   echo dvbtenc different
+fi
+rm /tmp/output.bin
+
+cat ./$folderpath/output_ma.bin | ./chan_ifft_quant $arguments > /tmp/output.bin
+if ./float_cmp ./$folderpath/output.bin /tmp/output.bin 10 ; then
+  echo chan_ifft_quant same
+else
+  echo chan_ifft_quant different
 fi
 rm /tmp/output.bin
 
@@ -323,5 +339,13 @@ if ./float_cmp ./$folderpath/output.bin /tmp/output.bin 0.25 ; then
   echo dvbtenc same
 else
   echo dvbtenc different
+fi
+rm /tmp/output.bin
+
+cat ./$folderpath/output_ma.bin | ./chan_ifft_quant $arguments > /tmp/output.bin
+if ./float_cmp ./$folderpath/output.bin /tmp/output.bin 0.25 ; then
+  echo chan_ifft_quant same
+else
+  echo chan_ifft_quant different
 fi
 rm /tmp/output.bin
