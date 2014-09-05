@@ -54,6 +54,7 @@ private:
 	dvbt_complex_t *tmp;
 	unsigned int mGuardOffset;
 	unsigned int mBufsize;
+	unsigned int mQuantCnt;
 };
 
 #endif
