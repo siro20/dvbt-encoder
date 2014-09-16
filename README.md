@@ -41,9 +41,9 @@ test coderate 5/6, 7/8
 
 Encoding speed:
 ---------------
-Realtime on Intel(R) Core(TM) i5-3450
-Realtime on AMD Athlon II Dual-Core M320
-Realtime on Intel® Core™2 Quad Processor Q9400
+* Realtime on Intel(R) Core(TM) i5-3450
+* Realtime on AMD Athlon II Dual-Core M320
+* Realtime on Intel® Core™2 Quad Processor Q9400
 
 features:
 --------------
