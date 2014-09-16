@@ -32,7 +32,7 @@ Tested Modes:
 * coderate 1/2, 2/3, 3/4
 * modulation QPSK, 16QAM, 64QAM
 * guard interval 1/4, 1/8, 1/16, 1/32
-* oversampling 2x, 4x
+* oversampling 1x, 2x, 4x
 * output format float, signed short
 
 TODO:
@@ -42,10 +42,12 @@ test coderate 5/6, 7/8
 Encoding speed:
 ---------------
 Realtime on Intel(R) Core(TM) i5-3450
+Realtime on AMD Athlon II Dual-Core M320
+Realtime on Intel® Core™2 Quad Processor Q9400
 
 features:
 --------------
-multiple processes for efficient multicore usage 
+7 threads for optimal multicore usage 
 
 supported platforms:
 -------------
