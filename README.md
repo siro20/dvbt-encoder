@@ -5,7 +5,7 @@ required libraries:
 
 * libfftw3f
 * libstdc++
-* libpthread
+* libpthread (workaround for g++ bug)
 
 Supported Modes:
 ---------------
