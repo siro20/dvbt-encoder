@@ -5,7 +5,10 @@
 FREQUENCY=437000000
 
 BANDWIDTH=6
-GAIN=0.024
+# scale output to rms +- 1000
+GAIN=0.030
+# prevent interger overflow, allow +- 11bits (+- 2048) for CFR
+BITS=11
 FFTSIZE=2048
 CODERATE=3
 MODULATION=2
@@ -116,6 +119,7 @@ $app \
 -c $CODERATE \
 -m $MODULATION \
 -g $GUARDINTERVAL \
+-l $BITS \
 -a 1 \
 -i 0 \
 -v $OVERSAMPLING \
