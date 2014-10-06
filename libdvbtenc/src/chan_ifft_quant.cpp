@@ -70,6 +70,46 @@ DVBT_chan_ifft_quant::~DVBT_chan_ifft_quant()
 	delete[] this->bufB;
 }
 
+inline char DVBT_chan_ifft_quant::float_to_char(float in)
+{
+	float tmp = in * this->dvbt_settings->normalisation;
+	if( tmp > this->dvbt_settings->maxval )
+		tmp = this->dvbt_settings->maxval;
+	if( tmp < -this->dvbt_settings->maxval )
+		tmp = -this->dvbt_settings->maxval;
+	return (char)tmp;
+}
+
+inline unsigned char DVBT_chan_ifft_quant::float_to_uchar(float in)
+{
+	float tmp = in * this->dvbt_settings->normalisation + this->dvbt_settings->maxval/2.0f;
+	if( tmp > this->dvbt_settings->maxval )
+		tmp = this->dvbt_settings->maxval;
+	if( tmp < 0 )
+		tmp = 0;
+	return (unsigned char)tmp;
+}
+
+inline short int DVBT_chan_ifft_quant::float_to_short(float in)
+{
+	float tmp = in * this->dvbt_settings->normalisation;
+	if( tmp > this->dvbt_settings->maxval )
+		tmp = this->dvbt_settings->maxval;
+	if( tmp < -this->dvbt_settings->maxval )
+		tmp = -this->dvbt_settings->maxval;
+	return (short int)tmp;
+}
+
+inline unsigned short int DVBT_chan_ifft_quant::float_to_ushort(float in)
+{
+	float tmp = in * this->dvbt_settings->normalisation + this->dvbt_settings->maxval/2.0f;
+	if( tmp > this->dvbt_settings->maxval )
+		tmp = this->dvbt_settings->maxval;
+	if( tmp < 0 )
+		tmp = 0;
+	return (unsigned short int)tmp;
+}
+
 bool DVBT_chan_ifft_quant::encode(int frame, int symbol)
 {
 	if(symbol >= this->dvbt_settings->DVBT_SYMBOLS_FRAME)
@@ -96,8 +136,8 @@ bool DVBT_chan_ifft_quant::encode(int frame, int symbol)
 		case 0:
 			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
-				((dvbt_complex_char_t*)(out->ptr))[i+this->mGuardOffset].x = (char)(this->bufB[i].x*this->dvbt_settings->normalisation);
-				((dvbt_complex_char_t*)(out->ptr))[i+this->mGuardOffset].y = (char)(this->bufB[i].y*this->dvbt_settings->normalisation);
+				((dvbt_complex_char_t*)(out->ptr))[i+this->mGuardOffset].x = float_to_char(this->bufB[i].x);
+				((dvbt_complex_char_t*)(out->ptr))[i+this->mGuardOffset].y = float_to_char(this->bufB[i].y);
 			}
 			//insert <guardcarriers> to the beginning of the buffer
 			memcpy((dvbt_complex_char_t*)(out->ptr),((dvbt_complex_char_t*)(out->ptr))+this->mBufsize,
@@ -106,8 +146,8 @@ bool DVBT_chan_ifft_quant::encode(int frame, int symbol)
 		case 1:
 			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
-				((dvbt_complex_uchar_t*)(out->ptr))[i+this->mGuardOffset].x = (unsigned char)(this->bufB[i].x*this->dvbt_settings->normalisation)+0x80;
-				((dvbt_complex_uchar_t*)(out->ptr))[i+this->mGuardOffset].y = (unsigned char)(this->bufB[i].y*this->dvbt_settings->normalisation)+0x80;
+				((dvbt_complex_uchar_t*)(out->ptr))[i+this->mGuardOffset].x = float_to_uchar(this->bufB[i].x);
+				((dvbt_complex_uchar_t*)(out->ptr))[i+this->mGuardOffset].y = float_to_uchar(this->bufB[i].y);
 			}
 			//insert <guardcarriers> to the beginning of the buffer
 			memcpy((dvbt_complex_uchar_t*)(out->ptr),((dvbt_complex_uchar_t*)(out->ptr))+this->mBufsize,
@@ -116,8 +156,8 @@ bool DVBT_chan_ifft_quant::encode(int frame, int symbol)
 		case 2:
 			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
-				((dvbt_complex_short_t*)(out->ptr))[i+this->mGuardOffset].x = (short int)(this->bufB[i].x*this->dvbt_settings->normalisation);
-				((dvbt_complex_short_t*)(out->ptr))[i+this->mGuardOffset].y = (short int)(this->bufB[i].y*this->dvbt_settings->normalisation);
+				((dvbt_complex_short_t*)(out->ptr))[i+this->mGuardOffset].x = float_to_short(this->bufB[i].x);
+				((dvbt_complex_short_t*)(out->ptr))[i+this->mGuardOffset].y = float_to_short(this->bufB[i].y);
 			}
 			//insert <guardcarriers> to the beginning of the buffer
 			memcpy((dvbt_complex_short_t*)(out->ptr),((dvbt_complex_short_t*)(out->ptr))+this->mBufsize,
@@ -126,8 +166,8 @@ bool DVBT_chan_ifft_quant::encode(int frame, int symbol)
 		case 3:
 			for(unsigned int i=0;i<this->mBufsize;i++)
 			{
-				((dvbt_complex_ushort_t*)(out->ptr))[i+this->mGuardOffset].x = (unsigned short int)(this->bufB[i].x*this->dvbt_settings->normalisation)+0x8000;
-				((dvbt_complex_ushort_t*)(out->ptr))[i+this->mGuardOffset].y = (unsigned short int)(this->bufB[i].y*this->dvbt_settings->normalisation)+0x8000;
+				((dvbt_complex_ushort_t*)(out->ptr))[i+this->mGuardOffset].x = float_to_ushort(this->bufB[i].x);
+				((dvbt_complex_ushort_t*)(out->ptr))[i+this->mGuardOffset].y = float_to_ushort(this->bufB[i].y);
 			}
 			//insert <guardcarriers> to the beginning of the buffer
 			memcpy((dvbt_complex_ushort_t*)(out->ptr),((dvbt_complex_ushort_t*)(out->ptr))+this->mBufsize,

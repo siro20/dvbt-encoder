@@ -20,7 +20,7 @@
 
 using namespace std;
 
-DVBT_settings::DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guardinterval, int modulation, int alpha, int cellid, int oversampling, dvbt_data_formats outputformat, float gain )
+DVBT_settings::DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guardinterval, int modulation, int alpha, int cellid, int oversampling, dvbt_data_formats outputformat, float gain, int bits )
 {
 	//constants 
 	this->DVBT_MPEG_BYTES_RS_PACKET = 204;
@@ -117,19 +117,40 @@ DVBT_settings::DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guar
 	switch(outputformat)
 	{
 		case CHAR:
+			this->normalisation = 2.1f * this->gain;
+			if(bits <= 0)
+				this->bits = 7;
+			else
+				this->bits = bits > 7 ? 7: bits;
+			break;
 		case UCHAR:
 			this->normalisation = 2.1f * this->gain;
+			if(bits <= 0)
+				this->bits = 8;
+			else
+				this->bits = bits > 8 ? 8: bits;
 			break;
 		case SHORT:
+			this->normalisation = 537.0f * this->gain;
+			if(bits <= 0)
+				this->bits = 15;
+			else
+				this->bits = bits > 15 ? 15: bits;
+			break;
 		case USHORT:
 			this->normalisation = 537.0f * this->gain;
+			if(bits <= 0)
+				this->bits = 16;
+			else
+				this->bits = bits > 16 ? 16: bits;
 			break;
 		case FLOAT:
 			this->normalisation = 1.0f * this->gain;
+			this->bits = 0;
 			break;
 		break;
 	}
-	
+	this->maxval = (float)( 1 << this->bits );
 	/* calc common settings */
 
 	/* total bits ( including inner coder bits ) that are transmitted every superframe */

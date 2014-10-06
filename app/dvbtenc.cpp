@@ -40,8 +40,9 @@ void print_help_msg()
 	"		0 CHAR\n"
 	"		1 UCHAR\n"
 	"		2 SHORT\n"
-	"		3 USHORT\n"	
+	"		3 USHORT\n"
 	"		4 FLOAT\n"
+	"l		number of bits for interger output\n"
 	"f		gain\n"
 	"h		help message\n"
 	"p		print mpegts bitrate\n"
@@ -142,6 +143,7 @@ int main(int argc, char *argv[])
 	int cellid;
 	int oversampling;
 	int outputformat;
+	int bits;
 	float gain;
 	int opt;
 	bool benchmark;
@@ -160,12 +162,13 @@ int main(int argc, char *argv[])
 	gain = 1.0f;
 	outputformat = 4;
 	benchmark = false;
+	bits = 0;
 
 	print_mpegtsbitrate = false;
 	print_samplerate = false;
 	
 	opterr = 0;
-	while ((opt = getopt(argc, argv, "xto:b:c:g:m:a:i:s:f:v:zp?h")) != -1)
+	while ((opt = getopt(argc, argv, "xto:b:c:g:m:a:i:s:l:f:v:zp?h")) != -1)
 	{
 		switch (opt)
 		{
@@ -196,6 +199,9 @@ int main(int argc, char *argv[])
 		case 's':
 			outputformat = atoi(optarg);
 			break;
+		case 'l':
+			bits = atoi(optarg);
+			break;
 		case 'f':
 			gain = atof(optarg);
 			break;
@@ -221,7 +227,8 @@ int main(int argc, char *argv[])
 	}
 
 	try {
-		dvbtsettings = new DVBT_settings(ofdmmode, bandwidth, coderate, guardinterval, modulation, alpha, cellid, oversampling, static_cast<dvbt_data_formats>(outputformat), gain);
+		dvbtsettings = new DVBT_settings(ofdmmode, bandwidth, coderate, guardinterval,
+						modulation, alpha, cellid, oversampling, static_cast<dvbt_data_formats>(outputformat), gain, bits);
 	}
 	catch(...)
 	{

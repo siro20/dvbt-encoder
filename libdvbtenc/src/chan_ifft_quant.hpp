@@ -41,6 +41,10 @@ public:
 	~DVBT_chan_ifft_quant();
 	bool encode(int frame, int symbol);
 private:
+	inline char float_to_char(float in);
+	inline unsigned char float_to_uchar(float in);
+	inline short int float_to_short(float in);
+	inline unsigned short int float_to_ushort(float in);
 	unsigned int mReadSize;
 	unsigned int mWriteSize;
 	DVBT_pipe *pin;
