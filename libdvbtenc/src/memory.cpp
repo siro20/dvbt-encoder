@@ -43,7 +43,6 @@ DVBT_memory::~DVBT_memory()
 void DVBT_pipe::initReadEnd( unsigned int bufferSize )
 {
 	std::unique_lock<std::mutex> lock(this->mMutex);                  
-	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::initReadEnd( " << bufferSize << " )" << endl;
 
 	this->mReadEndSize = bufferSize;
 	this->cWaitInit.notify_one();
@@ -51,7 +50,6 @@ void DVBT_pipe::initReadEnd( unsigned int bufferSize )
 
 bool DVBT_pipe::write(DVBT_memory *memin)
 {
-	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::write( " << memin->size << " )" << endl;
 	
 	if(this->mReadEndSize == 0)
 	{
@@ -123,7 +121,6 @@ bool DVBT_pipe::write(DVBT_memory *memin)
 			}
 			if(this->mQueueOut.size() == 1){
 				this->cWaitEmpty.notify_one();
-				//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::write() cWaitEmpty.notify_one()" << endl;
 			}
 			this->mOffsetOut = 0;
 			this->memout = 0;
@@ -137,11 +134,9 @@ DVBT_memory *DVBT_pipe::read()
 {
 	if(this->mWriteEndClose && this->mQueueOut.empty())
 		return NULL;
-	
+
 	std::unique_lock<std::mutex> lock(this->mMutex);
-	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::read()" << endl;
-	//std::cerr << "\tthis->mQueueOut.size() = " << this->mQueueOut.size() << endl;
-	
+
 	while(this->mQueueOut.empty() && !this->mWriteEndClose)
 	{
 		this->cWaitEmpty.wait(lock);
@@ -160,7 +155,6 @@ DVBT_memory *DVBT_pipe::read()
 void DVBT_pipe::CloseReadEnd()
 {
 	std::unique_lock<std::mutex> lock(this->mMutex);
-	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::CloseReadEnd()" << endl;                  
 
 	this->mReadEndClose = true;
 	this->cWaitFull.notify_one(); 
@@ -169,7 +163,6 @@ void DVBT_pipe::CloseReadEnd()
 void DVBT_pipe::CloseWriteEnd()
 {
 	std::unique_lock<std::mutex> lock(this->mMutex);
-	//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::CloseWriteEnd()" << endl;
 
 	if(this->memout)
 	{
@@ -185,7 +178,6 @@ void DVBT_pipe::CloseWriteEnd()
 		this->mQueueOut.push( memout );
 		if(this->mQueueOut.size() == 1){
 			this->cWaitEmpty.notify_one();
-			//std::cerr << std::this_thread::get_id() << "::DVBT_pipe::write() cWaitEmpty.notify_one()" << endl;
 		}
 		this->mOffsetOut = 0;
 		this->memout = 0;
