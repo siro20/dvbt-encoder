@@ -61,6 +61,8 @@ public:
 	void CloseReadEnd();
 	//close write end
 	void CloseWriteEnd();
+	//get size of read end non-blocking
+	size_t read_size();
 private:
 	unsigned int mQueueMaxSize;
 	unsigned int mReadEndSize;

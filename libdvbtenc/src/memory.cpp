@@ -152,6 +152,15 @@ DVBT_memory *DVBT_pipe::read()
 	return mem;
 }
 
+size_t DVBT_pipe::read_size()
+{
+	if(this->mWriteEndClose && this->mQueueOut.empty())
+		return 0;
+	std::unique_lock<std::mutex> lock(this->mMutex);
+
+	return this->mQueueOut.size();
+}
+
 void DVBT_pipe::CloseReadEnd()
 {
 	std::unique_lock<std::mutex> lock(this->mMutex);
