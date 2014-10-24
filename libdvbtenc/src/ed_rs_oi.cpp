@@ -20,15 +20,18 @@
 
 using namespace std;
 
-DVBT_ed_rs_oi::DVBT_ed_rs_oi(DVBT_pipe *pin, DVBT_pipe *pout)
+DVBT_ed_rs_oi::DVBT_ed_rs_oi(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings)
 {
 	int pbrs = 0xa9;
 	unsigned int out=0;
-	this->mReadSize = 188*8; // multiple of 8
-	this->mWriteSize = 204*8; // multiple of 204
+	const int multiple = 16;
+	this->mReadSize = 188*multiple; // multiple of 8
+	this->mWriteSize = 204*multiple; // multiple of 204
 	this->ed_pbrs_seq = new uint8_t[188*8];
 	this->pin = pin;
 	this->pout = pout;
+	
+	this->dvbt_settings = dvbt_settings;
 	
 	this->pin->initReadEnd( this->mReadSize );
 	/* gen pbrs sequence */
@@ -65,9 +68,14 @@ DVBT_ed_rs_oi::DVBT_ed_rs_oi(DVBT_pipe *pin, DVBT_pipe *pout)
 			this->oi_queues[i].push(0);
 		}
 	}
-	
+	seccnt = 0;
+	bitscnt = 0;
 	this->edcnt = 0;
 	this->oicnt = 0;
+	this->mPidCnt = 0;
+	this->mFirstTime = true;
+	this->muxrate_cnt = 0;
+	this->sleep_us_mpegts_pkt = std::chrono::microseconds((((uint64_t)this->dvbt_settings->DVBT_MPEG_BYTES_TS_PACKET * 8ULL)<<32 / this->dvbt_settings->muxrate) -1);
 }
 
 DVBT_ed_rs_oi::~DVBT_ed_rs_oi()
@@ -107,6 +115,75 @@ static inline void galois_mult( uint32_t *wreg, uint8_t shadow )
 	}
 }
 
+DVBT_memory *DVBT_ed_rs_oi::remuxer()
+{
+	if(mFirstTime){
+		t0 = mClock.now();
+		mFirstTime = false;
+	}
+	
+	t1 = mClock.now();
+	//time since last call
+	microseconds us = duration_cast<microseconds>(t1-t0);
+	t0 = t1;
+	this->muxrate_cnt += this->dvbt_settings->muxrate * (uint64_t)us.count();
+	//std::cerr << "this->muxrate_cnt " << (this->muxrate_cnt >> 32) << endl;
+	seccnt += us.count();
+	if(seccnt > 1000000)
+	{
+		
+		std::cerr << "bits/s " << (1000000ULL * (uint64_t)bitscnt / (uint64_t)seccnt) << std::endl;
+		bitscnt = 0;
+		seccnt = 0;
+	}
+	
+	if( this->pin->read_size() == 0 )
+	{		int i;
+		for(i=this->mReadSize; i > 188; i-=188)
+		{
+			if( (this->muxrate_cnt>>32) > i )
+				break;
+		}
+		if( i == 188 )
+		{
+			// muxer is to fast, slow it down
+			std::this_thread::sleep_for( this->sleep_us_mpegts_pkt );
+			std::cerr << "sleeping" << endl; 
+		}
+		DVBT_memory *nullpkt = new DVBT_memory(i);
+		for(int j=0, k=0;j<i;j+=188)
+		{
+			nullpkt->ptr[0+j] = 0x47; // sync byte
+			nullpkt->ptr[1+j] = 0x1f; // pid NULL packet
+			nullpkt->ptr[2+j] = 0xff; // pid NULL packet
+			nullpkt->ptr[3+j] = 0x10; //|mPidCnt; // std. payload
+			mPidCnt++;
+			mPidCnt&=0x0f;
+		}
+		std::cerr << "*" << std::endl;
+		this->muxrate_cnt -= ((int64_t)(i*8)<<32);
+		bitscnt += i*8;
+		return nullpkt;
+	}
+	else
+	{
+		if( (this->muxrate_cnt>>32) < (int64_t)(this->mReadSize*8) )
+		{
+			// muxer is to fast, slow it down
+			std::this_thread::sleep_for( this->sleep_us_mpegts_pkt * 8 );
+			std::cerr << "sleeping" << endl; 
+		}
+		// reset pid
+		mPidCnt = 0;
+		std::cerr << "_" << std::endl;
+		// adjust muxrate counter
+		this->muxrate_cnt -= ((int64_t)(this->mReadSize*8)<<32);
+		bitscnt += this->mReadSize*8;
+		return this->pin->read();
+	}
+}
+
+
 //encodes length packets, assuming that the MPEG TS sync byte is at offset 0
 bool DVBT_ed_rs_oi::encode()
 {
@@ -116,8 +193,17 @@ bool DVBT_ed_rs_oi::encode()
 	uint64_t edtmp;
 	uint32_t *datain;
 	uint8_t edout;
+	DVBT_memory *in;
+	in = NULL;
+	if( this->dvbt_settings->remuxer )
+	{
+		in = remuxer();
+	}
+	else
+	{
+		in = this->pin->read();
+	}
 	
-	DVBT_memory *in = this->pin->read();
 	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
 	if( !in || !in->size || !out || !out->ptr )
 	{
@@ -129,10 +215,10 @@ bool DVBT_ed_rs_oi::encode()
 	datain = (uint32_t*)in->ptr;
 	dataout = out->ptr;
 	edtmp = 0;
-    for(unsigned int j=0; j <  this->mReadSize; j+= 188)
+    for(unsigned int j=0; j < in->size; j+= 188)
     {
 		// clear register on each loop
-		memset( wreg, 0 , sizeof(wreg) );
+		memset( wreg, 0, sizeof(wreg) );
 		shadow = 0;
         for(unsigned int i=0; i<188; i++)
         {

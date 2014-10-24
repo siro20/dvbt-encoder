@@ -40,9 +40,9 @@
 #include "chan.hpp"
 #include "quant.hpp"
 
-static void _proc_ed_rs_oi(DVBT_pipe* pin, DVBT_pipe* pout,DVBT_settings *dvbtsettings)
+static void _proc_ed_rs_oi(DVBT_pipe* pin, DVBT_pipe* pout, DVBT_settings *dvbtsettings)
 {
-	DVBT_ed_rs_oi dvbted_rs_oi(pin,pout);
+	DVBT_ed_rs_oi dvbted_rs_oi(pin, pout, dvbtsettings);
 
 	while(dvbted_rs_oi.encode())
 	{};

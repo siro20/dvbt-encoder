@@ -22,6 +22,7 @@
 #include <iostream>
 #include <cstdio>
 #include <stdexcept>
+#include <inttypes.h>
 
 using namespace std;
 
@@ -46,7 +47,8 @@ typedef struct { unsigned short int  x; unsigned short int  y; }  dvbt_complex_u
 class DVBT_settings
 {
 public:
-	DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guardinterval, int modulation, int alpha, int cellid, int oversampling, dvbt_data_formats outputformat, float gain, int bits);
+	DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guardinterval, int modulation, 
+			int alpha, int cellid, int oversampling, dvbt_data_formats outputformat, float gain, int bits, bool remuxer);
 	~DVBT_settings();
 	float mpegtsbitrate;
 	float symbolrate;
@@ -68,6 +70,8 @@ public:
 	int ofdmmode;
 	float gain;
 	int bits;
+	bool remuxer;
+	uint64_t muxrate;
 	float maxval;
 	float normalisation;
 	int DVBT_MPEG_BYTES_RS_PACKET;

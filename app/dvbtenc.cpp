@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
 
 	try {
 		dvbtsettings = new DVBT_settings(ofdmmode, bandwidth, coderate, guardinterval,
-						modulation, alpha, cellid, oversampling, static_cast<dvbt_data_formats>(outputformat), gain, bits);
+						modulation, alpha, cellid, oversampling, static_cast<dvbt_data_formats>(outputformat), gain, bits, true);
 	}
 	catch(...)
 	{

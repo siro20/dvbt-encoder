@@ -20,7 +20,8 @@
 
 using namespace std;
 
-DVBT_settings::DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guardinterval, int modulation, int alpha, int cellid, int oversampling, dvbt_data_formats outputformat, float gain, int bits )
+DVBT_settings::DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guardinterval, int modulation, int alpha, 
+		int cellid, int oversampling, dvbt_data_formats outputformat, float gain, int bits, bool remuxer )
 {
 	//constants 
 	this->DVBT_MPEG_BYTES_RS_PACKET = 204;
@@ -167,9 +168,15 @@ DVBT_settings::DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guar
 	this->tspacketspersuperframe = this->bytespersuperframe / DVBT_MPEG_BYTES_RS_PACKET;
 	/* total ofdm symbol per superframe */
 	this->ofdmsymbolspersuperframe = (this->ofdmmode + this->ofdmmode / this->guardinterval) * DVBT_SYMBOLS_FRAME * DVBT_FRAMES_SUPERFRAME;
+
 	/* ofdm symbolrate at I/Q transmitter */
 	this->symbolrate = (float)this->bandwidth * 1000000.0f * 8.0f / 7.0f;
 
-	/* mpegts bitrate */
+	/* mpegts bitrate aka muxrate */
 	this->mpegtsbitrate = (float)this->tspacketspersuperframe * (float)DVBT_MPEG_BYTES_TS_PACKET * 8.0f * (this->symbolrate / (float)this->ofdmsymbolspersuperframe);
+	/* used for internal remuxer, fixed point value */
+	this->muxrate = (((uint64_t)this->tspacketspersuperframe * (uint64_t)DVBT_MPEG_BYTES_TS_PACKET * 8ULL * (uint64_t)this->bandwidth * 8ULL)<<32)/((uint64_t)this->ofdmsymbolspersuperframe * 7ULL);
+	
+	/* save remuxer setting */
+	this->remuxer = remuxer;
 }
