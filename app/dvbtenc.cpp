@@ -44,6 +44,7 @@ void print_help_msg()
 	"		4 FLOAT\n"
 	"l		number of bits for interger output\n"
 	"f		gain\n"
+	"j		disable automatic input CBR mode\n"
 	"h		help message\n"
 	"p		print mpegts bitrate\n"
 	"z		print samplerate\n"
@@ -150,6 +151,7 @@ int main(int argc, char *argv[])
 	DVBT_settings *dvbtsettings;
 	bool print_mpegtsbitrate;
 	bool print_samplerate;
+	bool disable_cbr;
 	
 	ofdmmode = 2048;
 	bandwidth = 8;
@@ -163,12 +165,13 @@ int main(int argc, char *argv[])
 	outputformat = 4;
 	benchmark = false;
 	bits = 0;
+	disable_cbr = false;
 
 	print_mpegtsbitrate = false;
 	print_samplerate = false;
 	
 	opterr = 0;
-	while ((opt = getopt(argc, argv, "xto:b:c:g:m:a:i:s:l:f:v:zp?h")) != -1)
+	while ((opt = getopt(argc, argv, "jxto:b:c:g:m:a:i:s:l:f:v:zp?h")) != -1)
 	{
 		switch (opt)
 		{
@@ -221,6 +224,9 @@ int main(int argc, char *argv[])
 		case 'x':
 			benchmark = true;
 			break;
+		case 'j':
+			disable_cbr = true;
+			break;
 		default:
 			print_help_msg();
 		}
@@ -228,7 +234,7 @@ int main(int argc, char *argv[])
 
 	try {
 		dvbtsettings = new DVBT_settings(ofdmmode, bandwidth, coderate, guardinterval,
-						modulation, alpha, cellid, oversampling, static_cast<dvbt_data_formats>(outputformat), gain, bits, true);
+						modulation, alpha, cellid, oversampling, static_cast<dvbt_data_formats>(outputformat), gain, bits, !disable_cbr);
 	}
 	catch(...)
 	{
