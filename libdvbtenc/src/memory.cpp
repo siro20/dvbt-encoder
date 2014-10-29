@@ -24,8 +24,6 @@
 
 using namespace std;
 
-static bool debug = true;
-
 DVBT_memory::DVBT_memory(int Size)
 {
 	size = Size;
@@ -42,7 +40,7 @@ DVBT_memory::~DVBT_memory()
 
 void DVBT_pipe::initReadEnd( unsigned int bufferSize )
 {
-	std::unique_lock<std::mutex> lock(this->mMutex);                  
+	std::unique_lock<std::mutex> lock(this->mMutex);
 
 	this->mReadEndSize = bufferSize;
 	this->cWaitInit.notify_one();
@@ -69,15 +67,6 @@ bool DVBT_pipe::write(DVBT_memory *memin)
 		while(this->mQueueOut.size() == this->mQueueMaxSize)
 		{
 			this->cWaitFull.wait(lock);
-		}
-		if(debug)
-		{
-			static std::ofstream ofs;
-			if(!ofs.is_open())
-				ofs.open (this->mIdent, std::ofstream::out | std::ofstream::app);
-			auto millitime = std::chrono::duration_cast<std::chrono::milliseconds>
-				(std::chrono::system_clock::now().time_since_epoch()).count();
-			ofs << millitime << " " << memin->size << endl;
 		}
 		this->mQueueOut.push( memin );
 		if(this->mQueueOut.size() == 1)
@@ -110,15 +99,7 @@ bool DVBT_pipe::write(DVBT_memory *memin)
 				return false;
 			}
 			this->mQueueOut.push( memout );
-			if(debug)
-			{
-				static std::ofstream ofs;
-				if(!ofs.is_open())
-					ofs.open (this->mIdent, std::ofstream::out | std::ofstream::app);
-				auto millitime = std::chrono::duration_cast<std::chrono::milliseconds>
-					(std::chrono::system_clock::now().time_since_epoch()).count();
-				ofs << millitime << " " << memout->size << endl;
-			}
+
 			if(this->mQueueOut.size() == 1){
 				this->cWaitEmpty.notify_one();
 			}
