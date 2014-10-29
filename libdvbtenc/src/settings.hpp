@@ -48,7 +48,7 @@ class DVBT_settings
 {
 public:
 	DVBT_settings(int ofdmmode, int bandwidth, int coderate, int guardinterval, int modulation, 
-			int alpha, int cellid, int oversampling, dvbt_data_formats outputformat, float gain, int bits, bool remuxer);
+			int alpha, int cellid, int oversampling, dvbt_data_formats outputformat, float gain, int bits = 0, bool remuxer = false);
 	~DVBT_settings();
 	float mpegtsbitrate;
 	float symbolrate;

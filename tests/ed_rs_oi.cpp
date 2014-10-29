@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
 	std::thread wt(write_thread, pout);
 	std::thread rt(read_thread, pin);
 
-	DVBT_ed_rs_oi dvbted_rs_oi(pin, pout);
+	DVBT_ed_rs_oi dvbted_rs_oi(pin, pout, dvbtsettings);
 
 	while(dvbted_rs_oi.encode())
 	{};
