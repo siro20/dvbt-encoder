@@ -27,6 +27,8 @@ Arguments:
 | h   |  print help message  |   |  |
 | p   |  print mpegts bitrate to stdout  |   |  |
 | z   |  print samplerate to stdout  |   |  |
+| l   |  number of bits for integer output | int  | {1-32} |
+| j   |  disable automatic input CBR mode  |  |
 
 > dvbtenc reads from stdin and writes to stdout !
 >
@@ -55,9 +57,39 @@ If an argument isn't supplied this value is used instead:
 >
 > outputformat = 4
 >
+> number of bits = full integer
 
 
 Example:
 ---------------
-cat input.mpegts | ./dvbtenc -o 2048 -b 8 -c 3 -m 2 -o 2 -g 1 -s 4 > ./output.complex
+cat input.mpegts | ./dvbtenc -o 2048 -b 8 -c 3 -m 2 -v 2 -g 4 -f 0.03 -s 2 -l 12 > ./output.complex
 
+> This set OFDM mode to 2k,
+
+> 8Mhz Channel bandwidth,
+
+> puncturing coderate 2/3,
+
+> QPSK carrier modulation,
+
+> 2x oversampling,
+
+> guardinterval set to 1/4,
+
+> baseband gain set to 0.03,
+
+> outputformat signed short integer (16bit),
+
+> set outputformat bits to (+-11bit)
+
+> Note:
+
+> the output values are in range +-2048.
+
+> the output values are	clamped	at -2048 and +2047.
+
+> The output samplerate is 2x 8Mx 8/7 = 18.28MSP/s.
+
+> By default input CBR mode is active, thus it is inserting NULL packets
+
+> into the input MPEGTS if neccessary. It can be disabled by using -j.
