@@ -45,152 +45,136 @@ DVBT_ce::~DVBT_ce()
 {
 }
 
-inline uint8_t _conv_x( uint8_t x )
-{
-	return ((x>>6) ^ (x>>5) ^ (x>>4) ^ (x>>3) ^ x)&1;
-}
-
-inline uint8_t _conv_y( uint8_t x )
-{
-	return ((x>>6) ^ (x>>4) ^ (x>>3) ^ (x>>1) ^ x)&1;
-}
+#define CALC_X_Y() { \
+uint16_t tmp[5]; \
+this->shiftreg |= in->ptr[i]; \
+tmp[0] = this->shiftreg >> 6; \
+tmp[1] = this->shiftreg >> 5; \
+tmp[2] = this->shiftreg >> 3; \
+tmp[3] = this->shiftreg >> 2; \
+tmp[4] = this->shiftreg >> 1; \
+x = tmp[0] ^ tmp[2] ^ tmp[3] ^ tmp[4] ^ this->shiftreg; \
+y = tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3] ^ this->shiftreg;
 
 void DVBT_ce::conv_encoder_12(DVBT_memory *in, DVBT_memory *out)
 {
-	int i,j;
 	uint8_t *outptr = out->ptr;
 
-	for(i=0;i<in->size;i++)
-	{
-		for(j=0x80;j!=0;j>>=1)
-		{
-			this->shiftreg >>= 1;
-			if(in->ptr[i] & j){
-				this->shiftreg |= 0x40;
-			}
+	for(int i=0;i<in->size;i++) {
+		uint16_t x;
+		uint16_t y;
 
-			outptr[0] = _conv_x( this->shiftreg );
-			outptr[1] = _conv_y( this->shiftreg );
-			outptr += 2;
+		CALC_X_Y
+
+		for(int j=7;j>-1;j--) {
+			*outptr = (x >> j) & 1; outptr++;
+			*outptr = (y >> j) & 1; outptr++;
 		}
+		this->shiftreg <<= 8;
 	}
 }
 
 void DVBT_ce::conv_encoder_23(DVBT_memory *in, DVBT_memory *out)
 {
-	int i,j,z;
+	int z;
 	uint8_t *outptr = out->ptr;
 	z = 0;
-	for(i=0;i<in->size;i++)
-	{
-		for(j=0x80;j!=0;j>>=1)
-		{
-			this->shiftreg >>= 1;
-			if(in->ptr[i] & j)
-				this->shiftreg |= 0x40;
-			if( z != 2 ) // remove X2 from stream
-			{
-				*outptr = _conv_x( this->shiftreg );
-				outptr++;
+	for(int i=0;i<in->size;i++) {
+		uint16_t x;
+		uint16_t y;
+
+		CALC_X_Y
+
+		for(int j=7;j>-1;j--) {
+			if( z != 2 ) { // remove X2
+				*outptr = (x >> j) & 1; outptr++;
 			}
 			z++;
-			if( z != 2 ) // remove X2 from stream
-			{
-				*outptr = _conv_y( this->shiftreg );
-				outptr++;
-			}
+			*outptr = (y >> j) & 1; outptr++;
 			z++;
 			z &= 0x3; // z modulo 4
 		}
+		this->shiftreg <<= 8;
 	}
 }
 
 void DVBT_ce::conv_encoder_34(DVBT_memory *in, DVBT_memory *out)
 {
-	int i,j,z;
+	int z;
 	uint8_t *outptr = out->ptr;
 	z = 0;
-	for(i=0;i<in->size;i++)
-	{
-		for(j=0x80;j!=0;j>>=1)
-		{
-			this->shiftreg >>= 1;
-			if(in->ptr[i] & j)
-				this->shiftreg |= 0x40;
-			if( z != 2 && z != 5) // remove X2, Y3 from stream
-			{
-				*outptr = _conv_x( this->shiftreg );
-				outptr++;
+	for(int i=0;i<in->size;i++) {
+		uint16_t x;
+		uint16_t y;
+
+		CALC_X_Y
+
+		for(int j=7;j>-1;j--) {
+			if( z != 2 ) { // remove X2 from stream
+				*outptr = (x >> j) & 1; outptr++;
 			}
 			z++;
-			if( z != 2 && z != 5) // remove X2, Y3 from stream
-			{
-				*outptr = _conv_y( this->shiftreg );
-				outptr++;
+			if( z != 5 ) { // remove Y3 from stream
+				*outptr = (y >> j) & 1; outptr++;
 			}
 			z++;
-			z = z % 6;
+			z = z % 6; // z modulo 6
 		}
+		this->shiftreg <<= 8;
 	}
 }
 
 
 void DVBT_ce::conv_encoder_56(DVBT_memory *in, DVBT_memory *out)
 {
-	int i,j,z;
+	int z;
 	uint8_t *outptr = out->ptr;
 	z = 0;
-	for(i=0;i<in->size;i++)
-	{
-		for(j=0x80;j!=0;j>>=1)
-		{
-			this->shiftreg >>= 1;
-			if(in->ptr[i] & j)
-				this->shiftreg |= 0x40;
-			if( z != 2 && z != 5 && z != 6 && z != 9 ) // remove X2 and Y3 and X4 and Y5 from stream
-			{
-				*outptr = _conv_x( this->shiftreg );
-				outptr++;
+	for(int i=0;i<in->size;i++) {
+		uint16_t x;
+		uint16_t y;
+
+		CALC_X_Y
+
+		for(int j=7;j>-1;j--) {
+			if( z != 2 && z != 6 ) { // remove X2 and X4 from stream
+				*outptr = (x >> j) & 1; outptr++;
 			}
 			z++;
-			if( z != 2 && z != 5 && z != 6 && z != 9 ) // remove X2 and Y3 and X4 and Y5 from stream
-			{
-				*outptr = _conv_y( this->shiftreg );
-				outptr++;
+			if( z != 5 && z != 9 ) { // remove Y3 and Y5 from stream
+				*outptr = (y >> j) & 1; outptr++;
 			}
 			z++;
-			z = z % 10;
+			z = z % 10; // z modulo 10
 		}
+		this->shiftreg <<= 8;
 	}
 }
 
 
 void DVBT_ce::conv_encoder_78(DVBT_memory *in, DVBT_memory *out)
 {
-	int i,j,z;
+	int z;
 	uint8_t *outptr = out->ptr;
 	z = 0;
-	for(i=0;i<in->size;i++)
-	{
-		for(j=0x80;j!=0;j>>=1)
-		{
-			this->shiftreg >>= 1;
-			if(in->ptr[i] & j)
-				this->shiftreg |= 0x40;
-			if( z != 2 && z != 5 && z != 6 && z != 9 && z != 10 && z != 13 ) // remove X2 and X3 and X4 and Y5 and X6 and Y7 from stream
-			{
-				*outptr = _conv_x( this->shiftreg );
-				outptr++;
+	for(int i=0;i<in->size;i++) {
+		uint16_t x;
+		uint16_t y;
+
+		CALC_X_Y
+
+		for(int j=7;j>-1;j--) {
+			if( z != 2 && z != 6 && z != 10 ) { // remove X2 and X3 and X4 from stream
+				*outptr = (x >> j) & 1; outptr++;
 			}
 			z++;
-			if( z != 2 && z != 5 && z != 6 && z != 9 && z != 10 && z != 13 ) // remove X2 and X3 and X4 and Y5 and X6 and Y7 from stream
-			{
-				*outptr = _conv_y( this->shiftreg );
-				outptr++;
+			if( z != 5 && z != 9 &&  z != 13 ) { // remove Y5 and X6 and Y7 from stream
+				*outptr = (y >> j) & 1; outptr++;
 			}
 			z++;
-			z = z % 14;
+			z = z % 14; // z modulo 14
 		}
+		this->shiftreg <<= 8;
 	}
 }
 
