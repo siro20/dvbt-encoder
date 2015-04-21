@@ -40,12 +40,14 @@ private:
 	void conv_encoder_34(DVBT_memory *in, DVBT_memory *out);
 	void conv_encoder_56(DVBT_memory *in, DVBT_memory *out);
 	void conv_encoder_78(DVBT_memory *in, DVBT_memory *out);
+	inline void calc_xy(uint16_t *x, uint16_t *y);
+
 	unsigned int mReadSize;
 	unsigned int mWriteSize;
 	DVBT_pipe *pin;
 	DVBT_pipe *pout;
 	DVBT_settings* dvbt_settings;
-	uint8_t shiftreg;
+	uint16_t shiftreg;
 };
 
 #endif

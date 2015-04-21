@@ -45,16 +45,16 @@ DVBT_ce::~DVBT_ce()
 {
 }
 
-#define CALC_X_Y() { \
-uint16_t tmp[5]; \
-this->shiftreg |= in->ptr[i]; \
-tmp[0] = this->shiftreg >> 6; \
-tmp[1] = this->shiftreg >> 5; \
-tmp[2] = this->shiftreg >> 3; \
-tmp[3] = this->shiftreg >> 2; \
-tmp[4] = this->shiftreg >> 1; \
-x = tmp[0] ^ tmp[2] ^ tmp[3] ^ tmp[4] ^ this->shiftreg; \
-y = tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3] ^ this->shiftreg;
+inline void DVBT_ce::calc_xy(uint16_t *x, uint16_t *y) {
+	uint16_t tmp[5];
+	tmp[0] = this->shiftreg >> 6;
+	tmp[1] = this->shiftreg >> 5;
+	tmp[2] = this->shiftreg >> 3;
+	tmp[3] = this->shiftreg >> 2;
+	tmp[4] = this->shiftreg >> 1;
+	*x = tmp[0] ^ tmp[2] ^ tmp[3] ^ tmp[4] ^ this->shiftreg;
+	*y = tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3] ^ this->shiftreg;
+}
 
 void DVBT_ce::conv_encoder_12(DVBT_memory *in, DVBT_memory *out)
 {
@@ -63,8 +63,8 @@ void DVBT_ce::conv_encoder_12(DVBT_memory *in, DVBT_memory *out)
 	for(int i=0;i<in->size;i++) {
 		uint16_t x;
 		uint16_t y;
-
-		CALC_X_Y
+		this->shiftreg |= in->ptr[i];
+		calc_xy(&x, &y);
 
 		for(int j=7;j>-1;j--) {
 			*outptr = (x >> j) & 1; outptr++;
@@ -82,8 +82,8 @@ void DVBT_ce::conv_encoder_23(DVBT_memory *in, DVBT_memory *out)
 	for(int i=0;i<in->size;i++) {
 		uint16_t x;
 		uint16_t y;
-
-		CALC_X_Y
+		this->shiftreg |= in->ptr[i];
+		calc_xy(&x, &y);
 
 		for(int j=7;j>-1;j--) {
 			if( z != 2 ) { // remove X2
@@ -106,8 +106,8 @@ void DVBT_ce::conv_encoder_34(DVBT_memory *in, DVBT_memory *out)
 	for(int i=0;i<in->size;i++) {
 		uint16_t x;
 		uint16_t y;
-
-		CALC_X_Y
+		this->shiftreg |= in->ptr[i];
+		calc_xy(&x, &y);
 
 		for(int j=7;j>-1;j--) {
 			if( z != 2 ) { // remove X2 from stream
@@ -133,8 +133,8 @@ void DVBT_ce::conv_encoder_56(DVBT_memory *in, DVBT_memory *out)
 	for(int i=0;i<in->size;i++) {
 		uint16_t x;
 		uint16_t y;
-
-		CALC_X_Y
+		this->shiftreg |= in->ptr[i];
+		calc_xy(&x, &y);
 
 		for(int j=7;j>-1;j--) {
 			if( z != 2 && z != 6 ) { // remove X2 and X4 from stream
@@ -160,8 +160,8 @@ void DVBT_ce::conv_encoder_78(DVBT_memory *in, DVBT_memory *out)
 	for(int i=0;i<in->size;i++) {
 		uint16_t x;
 		uint16_t y;
-
-		CALC_X_Y
+		this->shiftreg |= in->ptr[i];
+		calc_xy(&x, &y);
 
 		for(int j=7;j>-1;j--) {
 			if( z != 2 && z != 6 && z != 10 ) { // remove X2 and X3 and X4 from stream
