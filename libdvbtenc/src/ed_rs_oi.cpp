@@ -88,6 +88,7 @@ DVBT_ed_rs_oi::~DVBT_ed_rs_oi()
 // wreg points to a 16 byte array, shadow is the byte shifted out last round
 static inline void galois_mult( uint32_t *wreg, uint8_t shadow )
 {
+	int j = 0;
 	// using precalculated polynom, this encodes 16 bytes at once
 	// regular approach is using two lookup tables to encode a single byte
 	static const uint8_t xor_array[8][16] =
@@ -102,16 +103,17 @@ static inline void galois_mult( uint32_t *wreg, uint8_t shadow )
 		{204,206,62,248,189,252,187,116,67,7,57,227,87,56,247,204}
 	};
 	/* galois multiplication */
-	for(int j=0;j<8;j++)
+	while(shadow)
 	{
 		/* test every bit in shadow */
-			if(shadow & 1)
-			{
-				uint64_t *xor_ptr = (uint64_t*)&xor_array[j][0];
-				((uint64_t*)wreg)[0] ^= xor_ptr[0];
-				((uint64_t*)wreg)[1] ^= xor_ptr[1];
-			}
-			shadow >>=1;
+		if(shadow & 1)
+		{
+			uint64_t *xor_ptr = (uint64_t*)&xor_array[j][0];
+			((uint64_t*)wreg)[0] ^= xor_ptr[0];
+			((uint64_t*)wreg)[1] ^= xor_ptr[1];
+		}
+		shadow >>=1;
+		j++;
 	}
 }
 
@@ -190,7 +192,7 @@ bool DVBT_ed_rs_oi::encode()
 	uint8_t *dataout;
 	uint8_t shadow;
 	uint32_t wreg[4];
-	uint64_t edtmp;
+	uint32_t edtmp;
 	uint32_t *datain;
 	uint8_t edout;
 	DVBT_memory *in;
@@ -222,6 +224,7 @@ bool DVBT_ed_rs_oi::encode()
 		shadow = 0;
         for(unsigned int i=0; i<188; i++)
         {
+			edtmp >>= 8;
 			/* energy dispersal */
 			if((i & 0x3) == 0){
 				edtmp = *datain ^ ((uint32_t*)this->ed_pbrs_seq)[this->edcnt];
@@ -230,11 +233,9 @@ bool DVBT_ed_rs_oi::encode()
 				if( this->edcnt >= 188*8/sizeof(uint32_t) )
 					this->edcnt = 0;
 			}
-			/* fetch one byte */
-			edout = ((edtmp>>((i&0x3)<<3))&0xff);
 
 			/* shift in new byte */
-			wreg[3] |= edout<<24;
+			wreg[3] |= edtmp << 24;
 
 			/* do a galois multiplication on wreg */
 			galois_mult( wreg, shadow );
@@ -244,24 +245,27 @@ bool DVBT_ed_rs_oi::encode()
 
 			/* shift the register */
 			wreg[0] >>= 8;
-			wreg[0] |= (wreg[1]&0xff)<<24;
+			wreg[0] |= wreg[1]<<24;
 			wreg[1] >>= 8;
-			wreg[1] |= (wreg[2]&0xff)<<24;
+			wreg[1] |= wreg[2]<<24;
 			wreg[2] >>= 8;
-			wreg[2] |= (wreg[3]&0xff)<<24;
+			wreg[2] |= wreg[3]<<24;
 			wreg[3] >>= 8;
 			
 			/* outer interleaver */
 			/* insert new byte into buffer */
-			this->oi_queues[this->oicnt].push(edout);
+			this->oi_queues[this->oicnt].push(edtmp&0xff);
 			
 			/* copy last byte from buffer */
 			*dataout = this->oi_queues[this->oicnt].front(); 
 			dataout++;
 			this->oi_queues[this->oicnt].pop();
-			this->oicnt++;
-			if(this->oicnt == OI_SIZE)
+
+			if(this->oicnt == OI_SIZE - 1) {
 				this->oicnt = 0;
+			} else {
+				this->oicnt++;
+			}
 		}
 		for(unsigned int i=0; i<15; i++)
 		{
@@ -274,11 +278,11 @@ bool DVBT_ed_rs_oi::encode()
 
 			/* shift the register */
 			wreg[0] >>= 8;
-			wreg[0] |= (wreg[1]&0xff)<<24;
+			wreg[0] |= wreg[1]<<24;
 			wreg[1] >>= 8;
-			wreg[1] |= (wreg[2]&0xff)<<24;
+			wreg[1] |= wreg[2]<<24;
 			wreg[2] >>= 8;
-			wreg[2] |= (wreg[3]&0xff)<<24;
+			wreg[2] |= wreg[3]<<24;
 			wreg[3] >>= 8;
 		}
 
@@ -294,9 +298,11 @@ bool DVBT_ed_rs_oi::encode()
 			*dataout = this->oi_queues[this->oicnt].front(); 
 			dataout++;
 			this->oi_queues[this->oicnt].pop();
-			this->oicnt++;
-			if(this->oicnt == OI_SIZE)
+			if(this->oicnt == OI_SIZE - 1) {
 				this->oicnt = 0;
+			} else {
+				this->oicnt++;
+			}
 		}
 	}
 	
