@@ -42,7 +42,10 @@ public:
 	DVBT_ed_rs_oi(DVBT_pipe *pin, DVBT_pipe *pout, DVBT_settings* dvbt_settings);
 	~DVBT_ed_rs_oi();
 	bool encode();
-protected:	DVBT_memory *remuxer();
+protected:
+	uint32_t insert_oi(uint32_t val);
+	void galois_mult( uint32_t wreg[5] );
+	DVBT_memory *remuxer();
 	uint8_t * ed_pbrs_seq;
 	unsigned int edcnt;
 	unsigned int oicnt;
