@@ -34,80 +34,11 @@
 
 */
 
-
 #include "rs.hpp"
- 
-void DVBT_rs::generate_gf()
-/* generate GF(2**mm) from the irreducible polynomial p(X) in pp[0]..pp[mm]
-   lookup tables:  index->polynomial form   alpha_to[] contains j=alpha**i;
-                   polynomial form -> index form  index_of[j=alpha**i] = i
-   alpha=2 is the primitive element of GF(2**mm)
-*/
- {
-   int i, mask ;
-
-  mask = 1 ;
-  alpha_to[mm] = 0 ;
-  for (i=0; i<mm; i++)
-   { alpha_to[i] = mask ;
-     index_of[alpha_to[i]] = i ;
-     if (pp[i]!=0)
-       alpha_to[mm] ^= mask ;
-     mask <<= 1 ;
-   }
-  index_of[alpha_to[mm]] = mm ;
-  mask >>= 1 ;
-  for (i=mm+1; i<nn; i++)
-   { if (alpha_to[i-1] >= mask)
-        alpha_to[i] = alpha_to[mm] ^ ((alpha_to[i-1]^mask)<<1) ;
-     else alpha_to[i] = alpha_to[i-1]<<1 ;
-     index_of[alpha_to[i]] = i ;
-   }
-  index_of[0] = -1 ;
- }
-
-
-void DVBT_rs::gen_poly()
-/* Obtain the generator polynomial of the tt-error correcting, length
-  nn=(2**mm -1) Reed Solomon code  from the product of (X+alpha**i), i=1..2*tt
-*/
- {
-   int i,j ;
-
-   gg[0] = 2 ;    /* primitive element alpha = 2  for GF(2**mm)  */
-   gg[1] = 1 ;    /* g(x) = (X+alpha) initially */
-   for (i=2; i<=nn-kk; i++)
-    { gg[i] = 1 ;
-      for (j=i-1; j>0; j--)
-        if (gg[j] != 0)  gg[j] = gg[j-1]^ alpha_to[(index_of[gg[j]]+i)%nn] ;
-        else gg[j] = gg[j-1] ;
-      gg[0] = alpha_to[(index_of[gg[0]]+i)%nn] ;     /* gg[0] can never be zero */
-    }
-   /* convert gg[] to index form for quicker encoding */
-   //cout << "gg:" << endl;
-   for (i=0; i<=nn-kk; i++)
-   {
-        //cout << gg[i] << ", ";
-        gg[i] = index_of[gg[i]];
-   }
-   //cout << endl;
- }
 
 DVBT_rs::DVBT_rs(DVBT_pipe *pin, DVBT_pipe *pout)
 {
 	// primitive polynomial p(x) = x8 + x4 + x3 + x2 + 1
-	this->pp[0] = 1;
-	this->pp[1] = 0;
-	this->pp[2] = 1;
-	this->pp[3] = 1;
-	this->pp[4] = 1;
-	this->pp[5] = 0;
-	this->pp[6] = 0;
-	this->pp[7] = 0;
-	this->pp[8] = 1;
-
-	generate_gf();
-	gen_poly();
 	this->mReadSize = 188;
 	this->mWriteSize = 204;
 	this->pin = pin;
@@ -120,55 +51,78 @@ DVBT_rs::~DVBT_rs()
 {
 }
 
-// define a helper function doing the galois multiplication on 16 bytes at once
-// wreg points to a 16 byte array, shadow is the byte shifted out last round
-void DVBT_rs::galois_mult( uint32_t *wreg, uint8_t shadow )
+/*
+ * this optimized version allows to do 4 galois multiplication runs in a single function
+ * On every run 16 bytes are XORed at once.
+ * Instead of shifting single bytes the "last" byte is read from wreg[0].
+ */
+void DVBT_rs::galois_mult( uint32_t wreg[5] )
 {
-	int j = 0;
+	int i,j;
+	uint32_t tmp;
 	// using precalculated polynom, this encodes 16 bytes at once
 	// regular approach is using two lookup tables to encode a single byte
-	static const uint8_t xor_array[8][16] =
+	static const uint8_t xor_array[32][20] =
 	{
-		{59,13,104,189,68,209,30,8,163,65,41,229,98,50,36,59},	// generator polynom
-		{118,26,208,103,136,191,60,16,91,130,82,215,196,100,72,118},
-		{236,52,189,206,13,99,120,32,182,25,164,179,149,200,144,236},
-		{197,104,103,129,26,198,240,64,113,50,85,123,55,141,61,197},
-		{151,208,206,31,52,145,253,128,226,100,170,246,110,7,122,151},
-		{51,189,129,62,104,63,231,29,217,200,73,241,220,14,244,51},
-		{102,103,31,124,208,126,211,58,175,141,146,255,165,28,245,102},
-		{204,206,62,248,189,252,187,116,67,7,57,227,87,56,247,204}
+		{0,59,13,104,189,68,209,30,8,163,65,41,229,98,50,36,59,0,0,0},	// generator polynom
+		{0,118,26,208,103,136,191,60,16,91,130,82,215,196,100,72,118,0,0,0},
+		{0,236,52,189,206,13,99,120,32,182,25,164,179,149,200,144,236,0,0,0},
+		{0,197,104,103,129,26,198,240,64,113,50,85,123,55,141,61,197,0,0,0},
+		{0,151,208,206,31,52,145,253,128,226,100,170,246,110,7,122,151,0,0,0},
+		{0,51,189,129,62,104,63,231,29,217,200,73,241,220,14,244,51,0,0,0},
+		{0,102,103,31,124,208,126,211,58,175,141,146,255,165,28,245,102,0,0,0},
+		{0,204,206,62,248,189,252,187,116,67,7,57,227,87,56,247,204,0,0,0},
+		{0,0,59,13,104,189,68,209,30,8,163,65,41,229,98,50,36,59,0,0},	// generator polynom
+		{0,0,118,26,208,103,136,191,60,16,91,130,82,215,196,100,72,118,0,0},
+		{0,0,236,52,189,206,13,99,120,32,182,25,164,179,149,200,144,236,0,0},
+		{0,0,197,104,103,129,26,198,240,64,113,50,85,123,55,141,61,197,0,0},
+		{0,0,151,208,206,31,52,145,253,128,226,100,170,246,110,7,122,151,0,0},
+		{0,0,51,189,129,62,104,63,231,29,217,200,73,241,220,14,244,51,0,0},
+		{0,0,102,103,31,124,208,126,211,58,175,141,146,255,165,28,245,102,0,0},
+		{0,0,204,206,62,248,189,252,187,116,67,7,57,227,87,56,247,204,0,0},
+		{0,0,0,59,13,104,189,68,209,30,8,163,65,41,229,98,50,36,59,0},	// generator polynom
+		{0,0,0,118,26,208,103,136,191,60,16,91,130,82,215,196,100,72,118,0},
+		{0,0,0,236,52,189,206,13,99,120,32,182,25,164,179,149,200,144,236,0},
+		{0,0,0,197,104,103,129,26,198,240,64,113,50,85,123,55,141,61,197,0},
+		{0,0,0,151,208,206,31,52,145,253,128,226,100,170,246,110,7,122,151,0},
+		{0,0,0,51,189,129,62,104,63,231,29,217,200,73,241,220,14,244,51,0},
+		{0,0,0,102,103,31,124,208,126,211,58,175,141,146,255,165,28,245,102,0},
+		{0,0,0,204,206,62,248,189,252,187,116,67,7,57,227,87,56,247,204,0},
+		{0,0,0,0,59,13,104,189,68,209,30,8,163,65,41,229,98,50,36,59},	// generator polynom
+		{0,0,0,0,118,26,208,103,136,191,60,16,91,130,82,215,196,100,72,118},
+		{0,0,0,0,236,52,189,206,13,99,120,32,182,25,164,179,149,200,144,236},
+		{0,0,0,0,197,104,103,129,26,198,240,64,113,50,85,123,55,141,61,197},
+		{0,0,0,0,151,208,206,31,52,145,253,128,226,100,170,246,110,7,122,151},
+		{0,0,0,0,51,189,129,62,104,63,231,29,217,200,73,241,220,14,244,51},
+		{0,0,0,0,102,103,31,124,208,126,211,58,175,141,146,255,165,28,245,102},
+		{0,0,0,0,204,206,62,248,189,252,187,116,67,7,57,227,87,56,247,204}
 	};
-	/* galois multiplication */
-	while(shadow)
-	{
-		/* test every bit in shadow */
-		if(shadow & 1)
-		{
-#if _WIN64 || __amd64__
-				uint64_t *xor_ptr = (uint64_t*)&xor_array[j][0];
-			((uint64_t*)wreg)[0] ^= xor_ptr[0];
-			((uint64_t*)wreg)[1] ^= xor_ptr[1];
-#else
-			uint32_t *xor_ptr = (uint32_t*)&xor_array[j][0];
-			wreg[0] ^= xor_ptr[0];
-			wreg[1] ^= xor_ptr[1];
-			wreg[2] ^= xor_ptr[2];
-			wreg[3] ^= xor_ptr[3];
-#endif
+	for(i = 0; i < 32; i+= 8) {
+		tmp = (wreg[0]>>i) & 0xff;
+		/* galois multiplication */
+		for(j = i; tmp; j++) {
+			/* test every bit in shadow */
+			if(tmp & 1) {
+				uint32_t *xor_ptr = (uint32_t*)&xor_array[j][0];
+				wreg[0] ^= xor_ptr[0];
+				wreg[1] ^= xor_ptr[1];
+				wreg[2] ^= xor_ptr[2];
+				wreg[3] ^= xor_ptr[3];
+				wreg[4] ^= xor_ptr[4];
+			}
+			tmp >>=1;
 		}
-		shadow >>=1;
-		j++;
 	}
 }
 
-// software implementation of rs encoder
+/* software implementation of rs encoder, optimized for 32bit */
 bool DVBT_rs::encode( )
 {
 	int i,n;
-	unsigned int wreg[4];
-	unsigned char shadow;
-	uint8_t *datain;
-	uint8_t *dataout;
+	uint32_t wreg[5];
+
+	uint32_t *datain;
+	uint32_t *dataout;
 	DVBT_memory *in = this->pin->read();
 	DVBT_memory *out = new DVBT_memory( this->mWriteSize );
 	if( !in || !in->size || !out || !out->ptr )
@@ -178,67 +132,54 @@ bool DVBT_rs::encode( )
 		return false;
 	}
 	n = in->size;
-	datain = in->ptr;
-	dataout = out->ptr;
-	do{
+	datain = (uint32_t*)in->ptr;
+	dataout = (uint32_t*)out->ptr;
+	do {
 		// clear register on each loop
-		memset( wreg, 0 , sizeof(int) * 4 );
-		shadow = 0;
-		for( i=0; i<188; i++ )
-		{
+		memset(wreg, 0, sizeof(wreg));
+		for( i=0; i<47; i++ ) {
 			/* shift in new byte */
-			wreg[3] |= (datain[i]&0xff)<<24;
+			wreg[4] = datain[i];
 			dataout[i] = datain[i];
 
 			/* do a galois multiplication on wreg */
-			galois_mult( wreg, shadow );
-
-			/* make a backup of the last byte */
-			shadow = wreg[0]&0xff;
-
+			galois_mult( wreg );
 			/* shift the register */
-			wreg[0] >>= 8;
-			wreg[0] |= (wreg[1]&0xff)<<24;
-			wreg[1] >>= 8;
-			wreg[1] |= (wreg[2]&0xff)<<24;
-			wreg[2] >>= 8;
-			wreg[2] |= (wreg[3]&0xff)<<24;
-			wreg[3] >>= 8;
+			wreg[0] = wreg[1];
+			wreg[1] = wreg[2];
+			wreg[2] = wreg[3];
+			wreg[3] = wreg[4];
 		}
-		for( i=0; i<15; i++ )
-		{
-			/* shift in zeros: wreg[3] |= (0&0xff)<<24; , is already zero ! */
+		for( i=0; i<3; i++ ) {
+			/* shift in zeros */
+			wreg[4] = 0;
 
 			/* do a galois multiplication on wreg */
-			galois_mult( wreg, shadow );
-			/* make a backup of the last byte */
-			shadow = wreg[0]&0xff;
+			galois_mult( wreg );
 
 			/* shift the register */
-			wreg[0] >>= 8;
-			wreg[0] |= (wreg[1]&0xff)<<24;
-			wreg[1] >>= 8;
-			wreg[1] |= (wreg[2]&0xff)<<24;
-			wreg[2] >>= 8;
-			wreg[2] |= (wreg[3]&0xff)<<24;
-			wreg[3] >>= 8;
+			wreg[0] = wreg[1];
+			wreg[1] = wreg[2];
+			wreg[2] = wreg[3];
+			wreg[3] = wreg[4];
 		}
+		/* shift in zeros */
+		wreg[4] = 0;
 
 		/* do a galois multiplication on wreg */
-		galois_mult( wreg, shadow );
+		galois_mult( wreg );
 
 		/* copy the result */
-		memcpy(&dataout[188], wreg, sizeof(int) * 4);
-		
-		datain+=188;
-		dataout+=204;
+		memcpy(&dataout[47], &wreg[1], sizeof(wreg[0]) * 4);
+
+		datain+=47;
+		dataout+=51;
 		n-=188;
-	}while(n > 0);
+	} while(n > 0);
 
 	delete in;
 
-	if(!this->pout->write(out))
-	{
+	if(!this->pout->write(out)) {
 		this->pout->CloseWriteEnd();
 		this->pin->CloseReadEnd();
 		return false;
